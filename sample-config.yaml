@@ -1,0 +1,23 @@
+connection:
+    url: https://rally1.rallydev.com/slm/webservice/v2.0
+    schema_url: https://rally1.rallydev.com/slm/schema/v2.0/workspace/123
+    user: user@co.com
+    password: secret
+    endpoint: workitem
+    witype: hierarchicalrequirement
+    
+params:
+    workspace: 123
+    pagesize: 200
+    start: 1
+    query: ''
+    fetch: CreationDate,ObjectID,PlanEstimate,State,ScheduleState
+    
+db:
+    name: rally
+    user: postgres
+    password: postgres
+    host: 127.0.0.1
+    port: 5432
+    tables: Defect, HierarchicalRequirement
+    
