@@ -1,4 +1,4 @@
-#from clientiterator import WsapiIteratorClient
+
 from wsapiclient import WsapiIteratorClient
 import psycopg2
 from psycopg2.extensions import AsIs
@@ -20,9 +20,6 @@ for page in WsapiIteratorClient():
                     (AsIs("'" + story['CreationDate'] + "'"),AsIs(story['ObjectID']),AsIs("'" + story['ScheduleState'] + "'"), AsIs(story['PlanEstimate']),))
     
 conn.commit()  
-    #cur.execute("SELECT * FROM HierarchicalRequirement;")
-
-#cur.close()
 conn.close()
 
 
