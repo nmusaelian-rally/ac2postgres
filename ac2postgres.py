@@ -27,10 +27,10 @@ for page in WsapiIteratorClient(endpoint, url,user,password):
 
 def matchTypes(rally_type):
     return {
-        'INTEGER'   : 'integer',
+        'INTEGER'   : 'bigint',
         'DATE'      : 'timestamp with time zone',
         'BOOLEAN'   : 'boolean default false',
-        'QUANTITY'  : 'numeric'
+        'QUANTITY'  : 'double precision'   # Rally PlanEstimate's AttributeType: "QUANTITY"
     }[rally_type]
 
 
@@ -92,7 +92,7 @@ for i, result in enumerate(list(filter(workitems_subset, results))):
         print ('---' + attribute_type)
         
         if attribute['ElementName'] == 'ObjectID':
-            cur.execute("ALTER TABLE %s ADD COLUMN %s integer PRIMARY KEY", (AsIs(table_name), AsIs(element_name),))
+            cur.execute("ALTER TABLE %s ADD COLUMN %s bigint PRIMARY KEY", (AsIs(table_name), AsIs(element_name),))
         elif attribute['AttributeType'] == 'RATING':
            cur.execute("ALTER TABLE %s ADD COLUMN %s text check (%s IN (%s)) ",
                        (AsIs(table_name), AsIs(element_name), AsIs(element_name),(AsIs(getRaitingAllowedValues(allowed_values['_ref']))),))
