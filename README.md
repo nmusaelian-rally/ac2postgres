@@ -19,7 +19,7 @@ rally=# \d defect
     Column     |           Type           | Modifiers 
 ---------------+--------------------------+-----------
  creationdate  | timestamp with time zone | 
- objectid      | integer                  | not null
+ objectid      | bigint                   | not null
  schedulestate | text                     | 
  planestimate  | numeric                  | 
  state         | text                     | 
@@ -29,6 +29,9 @@ Check constraints:
     "defect_schedulestate_check" CHECK (schedulestate = ANY (ARRAY['Not Defined'::text, 'Defined'::text, 'In-Progress'::text, 'Completed'::text, 'Accepted'::text]))
     "defect_state_check" CHECK (state = ANY (ARRAY['Submitted'::text, 'Open'::text, 'Fixed'::text, 'Closed'::text]))
 ```
+**insert.py**
+
+- uses wsapicleint.py to get AgileCentral data (user stories) and populates the hierarchicalrequirements table
 
 **to run**
 
