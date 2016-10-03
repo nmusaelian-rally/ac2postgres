@@ -40,8 +40,14 @@ switch to postgres user in the terminal and create a database if it does not exi
 sudo su postgres
 bash-3.2$ createdb rally
 ```
-in the different terminal tab:
+in another terminal tab,
+to create tables and columns:
 
 ```
 python3.5 ac2postgres.py
+```
+to insert data into table:
+
+```
+python3.5 insert.py
 ```

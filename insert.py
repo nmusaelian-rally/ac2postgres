@@ -16,6 +16,7 @@ cur = conn.cursor()
 for page in WsapiIteratorClient():
     for story in page:
         #print ("ObjectID: %s, PlanEstimate: %s, CreationDate: %s, ScheduleState: %s" %(story['ObjectID'], story['PlanEstimate'], story['CreationDate'], story['ScheduleState'])) # 56425731020 (set PlanEst to 1 of US3)
+        print ("inserting story %s..." %story['ObjectID'])
         cur.execute("INSERT INTO hierarchicalrequirement (creationdate,objectid,schedulestate,planestimate) VALUES (%s, %s, %s, %s)",\
                     (AsIs("'" + story['CreationDate'] + "'"),AsIs(story['ObjectID']),AsIs("'" + story['ScheduleState'] + "'"), AsIs(story['PlanEstimate']),))
     
