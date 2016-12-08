@@ -9,7 +9,7 @@ to list of db tables in terminal:
     rally=# \d
 '''
 
-with open('../config.yaml', 'r') as file:
+with open('config.yml', 'r') as file:
     config = yaml.load(file)
 
 DB   = config["db"]["name"]

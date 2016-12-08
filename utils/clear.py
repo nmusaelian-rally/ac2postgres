@@ -7,7 +7,7 @@ to check outcomes in terminal:
     bash-3.2$ psql -l
 '''
 
-with open('../config.yaml', 'r') as file:
+with open('config.yml', 'r') as file:
     config = yaml.load(file)
 
 USER = config["db"]["user"]
