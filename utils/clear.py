@@ -1,7 +1,5 @@
 import psycopg2
-from psycopg2.extensions import AsIs
 import yaml
-import pytest
 
 '''
 to check outcomes in terminal:
