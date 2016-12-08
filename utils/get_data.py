@@ -4,9 +4,9 @@ import yaml
 import pytest
 
 '''
-to check outcomes in terminal:
-    $ sudo su postgres
-    bash-3.2$ psql -l
+to list of db tables in terminal:
+    bash-3.2$ psql -d rally
+    rally=# \d
 '''
 
 with open('../config.yaml', 'r') as file:
