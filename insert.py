@@ -6,7 +6,7 @@ import yaml
 import time
 import dateutil.parser
 
-with open('config.yaml', 'r') as file:
+with open('config.yml', 'r') as file:
     config = yaml.load(file)
 
 conn = psycopg2.connect(database=config["db"]["name"], user=config["db"]["user"], password=config["db"]["password"], host=config["db"]["host"], port=config["db"]["port"])

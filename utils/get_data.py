@@ -9,7 +9,7 @@ to list of db tables in terminal:
     rally=# \d
 '''
 
-with open('../config.yaml', 'r') as file:
+with open('config.yml', 'r') as file:
     config = yaml.load(file)
 
 DB   = config["db"]["name"]
@@ -18,32 +18,54 @@ PASS = config["db"]["password"]
 HOST = config["db"]["host"]
 PORT = config["db"]["port"]
 
-
-def get_tables(dbname=DB):
+def connect_db(dbname):
     con = None # to avoid "local variable con might be referenced before assignement
-    tables = []
     try:
         con = psycopg2.connect(database=dbname, user=USER, password=PASS, host=HOST, port=PORT)
-        cur = con.cursor()
-        cur.execute("""SELECT table_name FROM information_schema.tables
-           WHERE table_schema = 'public'""")
-
-        cur.execute("""SELECT table_name FROM information_schema.tables
-               WHERE table_schema = 'public'""")
-        for table in cur.fetchall():
-            tables.append(table)
-
     except psycopg2.Error as e:
         print("oh, noes! " + e.pgerror)
     finally:
-        if con:
-            con.close()
-            return tables
+        return con
 
+
+def get_tables(dbname):
+    con = connect_db(dbname)
+    if con:
+        cur = con.cursor()
+        tables = []
+        try:
+            cur.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
+            tables = [table for table in cur.fetchall()]
+        except psycopg2.Error as e:
+            print("oh, noes! " + e.pgerror)
+        finally:
+            if con:
+                con.close()
+                return tables
+
+def get_columns(dbname, table):
+    con = connect_db(dbname)
+    if con:
+        cur = con.cursor()
+        columns = []
+        try:
+            cur.execute("SELECT * FROM %s; ", (AsIs(table),))
+            columns = [desc[0] for desc in cur.description]
+        except psycopg2.Error as e:
+            print("oh, noes! " + e.pgerror)
+        finally:
+            if con:
+                con.close()
+                return columns
 
 def test_get_tables():
-    tables = get_tables()
+    tables = get_tables(DB)
     assert len(tables)
     print("\n-----\n")
     for t in tables:
         print(t[0]) # printing first element of each tuple, e.g. defect of (defect,)
+        columns = get_columns(DB, t[0])
+        assert len(columns)
+        for column in columns:
+            print("        %s" %column)
+

@@ -3,7 +3,7 @@ import yaml
 
 class WsapiIteratorClient:
     def __init__(self, endpoint=None, url=None, user=None, password=None, witype=None, start=None, pagesize=None, workspace=None, fetch=None, query=None):
-        with open('config.yaml', 'r') as file:
+        with open('config.yml', 'r') as file:
             conf = yaml.load(file)
     
         self._endpoint  = endpoint  or conf['connection']['endpoint']
