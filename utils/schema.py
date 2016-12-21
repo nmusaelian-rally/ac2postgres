@@ -53,3 +53,15 @@ def test_rating_allowed_values():
                     assert 'Submitted' in rating_allowed_values
                 if attr.ElementName == 'Severity':
                     assert 'Crash/Data Loss' in rating_allowed_values
+
+def test_state_allowed_values():
+    for result in results:
+        attributes = list(filter(attributes_subset, result.Attributes))
+        for attr in attributes:
+            state_allowed_values = []
+            if attr.AttributeType == 'STATE':
+                for a in attr.AllowedValues:
+                    state_allowed_values.append(a.StringValue)
+                if attr.ElementName == 'ScheduleState':
+                    assert 'In-Progress' in state_allowed_values
+                print("%s %s allowed values: %s" % (result.ElementName, attr.ElementName, state_allowed_values))
