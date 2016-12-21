@@ -3,6 +3,7 @@ import yaml
 import requests
 from psycopg2.extensions import AsIs
 from wsapiclient import WsapiIteratorClient
+import pyral
 
 with open('config.yml', 'r') as file:
     config = yaml.load(file)
@@ -14,7 +15,7 @@ print ("Opened database successfully")
 endpoint  = "schema"
 url       = config["connection"]["schema_url"]
 user      = config["connection"]["user"]
-password   = config["connection"]["password"]
+password  = config["connection"]["password"]
 some_workitems   = config["db"]["tables"]
 some_attributes  = config["params"]["fetch"]
 results = []

@@ -6,7 +6,7 @@ class WsapiIteratorClient:
         with open('config.yml', 'r') as file:
             conf = yaml.load(file)
     
-        self._endpoint  = endpoint  or conf['connection']['endpoint']
+        self._endpoint  = endpoint or conf['connection']['endpoint']
         self._url       = url      or conf['connection']['url']
         self._user      = user     or conf['connection']['user']
         self._password  = password or conf['connection']['password']

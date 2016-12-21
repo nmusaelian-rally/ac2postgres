@@ -1,3 +1,8 @@
+'''
+SELECT * FROM hierarchicalrequirement;
+to confirm outcome
+'''
+
 # Truncate tablename CASCADE
 
 import psycopg2
