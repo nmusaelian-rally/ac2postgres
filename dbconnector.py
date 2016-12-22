@@ -7,12 +7,13 @@ from pyral import Rally, rallyWorkset, RallyRESTAPIError
 
 class DBConnector:
     def __init__(self, config):
-        self.config   = self.read_config(config)
-        self.ac       = self.connect_ac()
-        self.db       = self.connect_db()
-        self.cursor   = self.db.cursor()
-        self.entities = self.config["db"]["tables"].replace(',','').split()
-        self.schema   = self.get_schema()
+        self.config     = self.read_config(config)
+        self.ac         = self.connect_ac()
+        self.db         = self.connect_db()
+        self.cursor     = self.db.cursor()
+        self.entities   = self.config["db"]["tables"].replace(',','').split()
+        self.schema     = self.get_schema()
+        self.columns = {}
 
     def read_config(self, config_name):
         with open(config_name, 'r') as file:
@@ -87,6 +88,7 @@ class DBConnector:
         for itemtype in self.schema:
             attributes = list(filter(self.attributes_subset, itemtype.Attributes))
             table_name = itemtype.ElementName
+            self.columns[table_name] = [attr.ElementName for attr in attributes]
             print(table_name)
             self.cursor.execute("CREATE TABLE %s ();", (AsIs(table_name),))
             for attr in attributes:

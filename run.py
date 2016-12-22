@@ -8,19 +8,13 @@ USAGE = """
 Usage: python run.py <config_file.yml>
 
        where the config file named must have content in YAML format with x sections;
-         one for the Agile Central system,
+         one for the Agile Central,
          one for the db system,
          ......TBD............
 """
 ##########################################################################################
 
 import sys
-import re
-import traceback
-import inspect
-
-#sys.path.insert(0, 'db_connect')
-
 from dbconnector_runner import DBConnectorRunner
 
 
