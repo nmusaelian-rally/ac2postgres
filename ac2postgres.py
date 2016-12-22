@@ -3,7 +3,6 @@ import psycopg2
 import yaml
 import requests
 from psycopg2.extensions import AsIs
-from wsapiclient import WsapiIteratorClient
 from pyral import Rally, rallyWorkset, RallyRESTAPIError
 
 errout = sys.stderr.write
@@ -14,20 +13,11 @@ with open('config.yml', 'r') as file:
 conn = psycopg2.connect(database=config["db"]["name"], user=config["db"]["user"], password=config["db"]["password"], host=config["db"]["host"], port=config["db"]["port"])
 
 print ("Opened database successfully")
-    
-#endpoint  = "schema"
-#url       = config["connection"]["schema_url"]
-#user      = config["connection"]["user"]
-#password  = config["connection"]["password"]
+
 some_workitems   = config["db"]["tables"]
 some_attributes  = config["params"]["fetch"]
 results = []
 
-# for page in WsapiIteratorClient(endpoint, url,user,password):
-#     for schema in page:
-#         results.append(schema)
-
-#print (type(results))
 
 USER      = config["rally"]["user"]
 PASS      = config["rally"]["password"]
@@ -70,36 +60,12 @@ def convert_list_to_string_of_quoted_items(values):
             str += ','
     return str
 
-# def getRaitingAllowedValues(allowed_values_endpoint):
-#     endpoint  = "schema"
-#     url = allowed_values_endpoint
-#     string_values = []
-#     for values in WsapiIteratorClient(endpoint, url,user,password):
-#         for value in values:
-#             string_values.append(value['StringValue'])
-#
-#     # (",".join([d['StringValue'] for d in av])) # will not work: it won't have quotes around items
-#     str = convert_list_to_string_of_quoted_items(string_values)
-#     return str
-#
-# def getStates(allowed_values):
-#     string_values = [av['StringValue'] for av in allowed_values]
-#     str = convert_list_to_string_of_quoted_items(string_values)
-#     return str
-
-def workitems_subset(element):
-    found = element['_refObjectName'] in some_workitems
-    return found
-
 def attributes_subset(element):
     found = element.ElementName in some_attributes
     return found
 
 cur = conn.cursor()
 
-#workitmes = list(filter(workitems_subset, results))
-#print (len(results))
-#for i, result in enumerate(list(filter(workitems_subset, results))):
 for result in results:
     attributes = list(filter(attributes_subset, result.Attributes))
     table_name = result.ElementName
