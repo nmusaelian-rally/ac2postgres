@@ -26,7 +26,7 @@ PROG = 'dbconn'
 def main(args):
     try:
         connector_runner = DBConnectorRunner(args[0])
-        connector_runner.create_tables_n_columns()
+        connector_runner.create()
     except Exception as msg:
         sys.stderr.write('ERROR: %s encountered an ERROR condition.\n %s' % (PROG, msg))
         sys.exit(1)

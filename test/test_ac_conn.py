@@ -1,3 +1,5 @@
+import time
+from datetime import datetime
 from dbconnector import DBConnector
 
 def instantiate(config):
@@ -44,3 +46,27 @@ def test_creation_date():
     assert creation_date.ReadOnly == True
     assert creation_date.Custom   == False
     assert creation_date.Constrained == False
+
+def test_columns_cache():
+    columns_cache = {'Defect': ['CreationDate', 'LastUpdateDate', 'ObjectID', 'ScheduleState', 'PlanEstimate', 'State'],
+                     'HierarchicalRequirement': ['CreationDate', 'LastUpdateDate', 'ObjectID', 'ScheduleState', 'PlanEstimate']}
+
+    entity = 'Defect'
+    fields = columns_cache[entity]
+    fetch  = ','.join(fields)
+
+    assert fetch == 'CreationDate,LastUpdateDate,ObjectID,ScheduleState,PlanEstimate,State'
+
+    query = conn.config['params']['query']
+    response = conn.ac.get('%s' % entity, fetch=fields, query=query, order="ObjectID", pagesize=1, limit=1)
+    assert response.target == entity
+    lud = [item.LastUpdateDate for item in response][0] # e.g '2016-01-13T15:05:26.890Z'
+    last_update_date_str = lud[:-5]
+    last_update_date = datetime.strptime(last_update_date_str, "%Y-%m-%dT%H:%M:%S")
+
+    query = conn.config['params']['query']
+    query_date_str = query.rsplit(' ', 1)[1] + 'T00:00:00'
+    query_date = datetime.strptime(query_date_str, "%Y-%m-%dT%H:%M:%S")
+
+    assert last_update_date >= query_date
+

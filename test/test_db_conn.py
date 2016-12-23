@@ -38,6 +38,7 @@ def test_db_connection():
     assert db
     db.close()
 
+###################### tests ###################################################
 
 def test_get_tables():
     tables = get_tables()
@@ -50,3 +51,5 @@ def test_get_tables():
         for column in columns:
             print("        %s" %column)
     conn.db.close()
+
+

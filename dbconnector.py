@@ -116,3 +116,24 @@ class DBConnector:
                     self.cursor.execute("ALTER TABLE %s ADD COLUMN %s %s",
                                 (AsIs(table_name), AsIs(element_name), (AsIs(self.matchTypes(attribute_type))),))
             self.db.commit()
+
+    def insert_init_data(self):
+        query = self.config['params']['query']
+        for entity in self.entities:
+            fields = self.columns[entity]
+            fetch = ','.join(fields)
+            response = self.ac.get('%s' % entity, fetch=fetch, query=query, order="ObjectID", pagesize=200)
+            for item in response:
+                if entity == 'Defect':
+                    #   fetch = 'CreationDate,ObjectID,ScheduleState,PlanEstimate,State'. Order matters
+                    self.cursor.execute("INSERT INTO %s (%s) VALUES (%s, %s, %s, %s, %s)", \
+                                (AsIs(entity), AsIs(fetch), AsIs("'" + item.CreationDate + "'"), AsIs(item.ObjectID),
+                                AsIs("'" + item.ScheduleState + "'"), AsIs(item.PlanEstimate),
+                                AsIs("'" + item.State + "'"),))
+                if entity == 'HierarchicalRequirement':
+                    self.cursor.execute(
+                        "INSERT INTO %s (creationdate,objectid,planestimate,schedulestate) VALUES (%s, %s, %s, %s)", \
+                        (AsIs(entity), AsIs("'" + item.CreationDate + "'"), AsIs(item.ObjectID),
+                         AsIs(item.PlanEstimate), AsIs("'" + item.ScheduleState + "'"),))
+        self.db.commit()
+        self.db.close()
