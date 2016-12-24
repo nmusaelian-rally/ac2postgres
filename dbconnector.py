@@ -130,23 +130,14 @@ class DBConnector:
 
             response = self.ac.get('%s' % entity, fetch=fetch, query=query, order="ObjectID", pagesize=200)
             for item in response:
-                if entity == 'Defect':
-                    field_values = []
-                    for field in fields:
-                        value = getattr(item, field)
-                        if field != 'ObjectID':
-                            value = "'" + value + "'"
-                        field_values.append(value)
-                    # the line below works
-                    #expression = "VALUES (%s)" % formatters %("'" + item.CreationDate + "'", item.ObjectID, "'" + item.ScheduleState + "'", "'" + item.State + "'")
-                    # the line below works
-                    expression = "VALUES (%s)" % formatters % tuple(field_values)
-                    #self.cursor.execute("INSERT INTO %s (%s) %s" %(entity,fetch,expression))
-                    self.cursor.execute("INSERT INTO %s (%s) %s", (AsIs(entity), AsIs(fetch), AsIs(expression),))
-                # if entity == 'HierarchicalRequirement':
-                #     self.cursor.execute(
-                #         "INSERT INTO %s (creationdate,objectid,schedulestate) VALUES (%s, %s, %s)", \
-                #         (AsIs(entity), AsIs("'" + item.CreationDate + "'"), AsIs(item.ObjectID),
-                #           AsIs("'" + item.ScheduleState + "'"),))
+                field_values = []
+                for field in fields:
+                    value = getattr(item, field)
+                    if field != 'ObjectID':
+                        value = "'" + value + "'"
+                    field_values.append(value)
+                expression = "VALUES (%s)" % formatters % tuple(field_values)
+                #self.cursor.execute("INSERT INTO %s (%s) %s" %(entity,fetch,expression))
+                self.cursor.execute("INSERT INTO %s (%s) %s", (AsIs(entity), AsIs(fetch), AsIs(expression),))
         self.db.commit()
         self.db.close()
