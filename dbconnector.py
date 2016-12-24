@@ -123,24 +123,30 @@ class DBConnector:
             fields = self.columns[entity]
             fetch = ','.join(fields)
 
-            values = ""
+            formatters = ""
             for field in fields:
-                values = values + "%s, "
-            values = values[:-2]
+                formatters = formatters + "%s, "
+            formatters = formatters[:-2]
 
             response = self.ac.get('%s' % entity, fetch=fetch, query=query, order="ObjectID", pagesize=200)
             for item in response:
                 if entity == 'Defect':
-                    attribtutes = []
+                    field_values = []
                     for field in fields:
-                        attribtutes.append(getattr(item, field))
-                    expression = "VALUES (%s)" % values %("'" + item.CreationDate + "'", item.ObjectID, "'" + item.ScheduleState + "'", "'" + item.State + "'")
+                        value = getattr(item, field)
+                        if field != 'ObjectID':
+                            value = "'" + value + "'"
+                        field_values.append(value)
+                    # the line below works
+                    #expression = "VALUES (%s)" % formatters %("'" + item.CreationDate + "'", item.ObjectID, "'" + item.ScheduleState + "'", "'" + item.State + "'")
+                    # the line below works
+                    expression = "VALUES (%s)" % formatters % tuple(field_values)
                     #self.cursor.execute("INSERT INTO %s (%s) %s" %(entity,fetch,expression))
                     self.cursor.execute("INSERT INTO %s (%s) %s", (AsIs(entity), AsIs(fetch), AsIs(expression),))
-                if entity == 'HierarchicalRequirement':
-                    self.cursor.execute(
-                        "INSERT INTO %s (creationdate,objectid,schedulestate) VALUES (%s, %s, %s)", \
-                        (AsIs(entity), AsIs("'" + item.CreationDate + "'"), AsIs(item.ObjectID),
-                          AsIs("'" + item.ScheduleState + "'"),))
+                # if entity == 'HierarchicalRequirement':
+                #     self.cursor.execute(
+                #         "INSERT INTO %s (creationdate,objectid,schedulestate) VALUES (%s, %s, %s)", \
+                #         (AsIs(entity), AsIs("'" + item.CreationDate + "'"), AsIs(item.ObjectID),
+                #           AsIs("'" + item.ScheduleState + "'"),))
         self.db.commit()
         self.db.close()
