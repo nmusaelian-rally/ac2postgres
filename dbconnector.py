@@ -88,8 +88,9 @@ class DBConnector:
         for itemtype in self.schema:
             attributes = list(filter(self.attributes_subset, itemtype.Attributes))
             table_name = itemtype.ElementName
-            self.columns[table_name] = [attr.ElementName for attr in attributes]
-            print(table_name)
+            #populate list of dictionaries of column_name:type, e.g.
+            # [{'CreationDate': 'DATE'}, {'ObjectID': 'INTEGER'}, {'ScheduleState': 'STATE'}]
+            self.columns[table_name] = [{attr.ElementName: attr.AttributeType} for attr in attributes ]
             self.cursor.execute("CREATE TABLE %s ();", (AsIs(table_name),))
             for attr in attributes:
                 element_name = attr.ElementName
@@ -120,7 +121,7 @@ class DBConnector:
     def insert_init_data(self):
         query = self.config['params']['query']
         for entity in self.entities:
-            fields = self.columns[entity]
+            fields = [k for column in self.columns[entity] for k,v in column.items()]
             fetch = ','.join(fields)
 
             formatters = ""
@@ -133,8 +134,9 @@ class DBConnector:
                 field_values = []
                 for field in fields:
                     value = getattr(item, field)
-                    if field != 'ObjectID':
-                        value = "'" + value + "'"
+                    integer_fields = [k for column in self.columns[entity] for k, v in column.items() if 'INTEGER' in column.values()]
+                    if field not in integer_fields:
+                         value = "'" + value + "'"
                     field_values.append(value)
                 expression = "VALUES (%s)" % formatters % tuple(field_values)
                 #self.cursor.execute("INSERT INTO %s (%s) %s" %(entity,fetch,expression))
