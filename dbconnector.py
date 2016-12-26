@@ -122,22 +122,31 @@ class DBConnector:
         query = self.config['params']['query']
         for entity in self.entities:
             fields = [k for column in self.columns[entity] for k,v in column.items()]
+            #non_empty_fields = fields[:]
+            non_empty_fields = []
             fetch = ','.join(fields)
 
             response = self.ac.get('%s' % entity, fetch=fetch, query=query, order="ObjectID", pagesize=200)
             for item in response:
                 field_values = []
                 formatters = ""
+                empty_fields = []
                 for field in fields:
                     value = getattr(item, field)
                     if value:
-                        formatters = formatters + "%s, "
+                        formatters = formatters + "%s,"
                         number_fields = [k for column in self.columns[entity] for k,v in column.items() if 'INTEGER' in column.values() or 'QUANTITY' in column.values()]
                         if field not in number_fields:
                             value = "'" + value + "'"
                         field_values.append(value)
-                formatters = formatters[:-2]
+                    else:
+                        empty_fields.append(field)
+                non_empty_fields = fields[:]
+                for field in empty_fields:
+                    non_empty_fields.remove(field)
+                columns = ','.join(non_empty_fields)
+                formatters = formatters[:-1] #remove trailing comma
                 expression = "VALUES (%s)" % formatters % tuple(field_values)
-                self.cursor.execute("INSERT INTO %s (%s) %s", (AsIs(entity), AsIs(fetch), AsIs(expression),))
+                self.cursor.execute("INSERT INTO %s (%s) %s", (AsIs(entity), AsIs(columns), AsIs(expression),))
         self.db.commit()
         self.db.close()
