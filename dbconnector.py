@@ -124,22 +124,20 @@ class DBConnector:
             fields = [k for column in self.columns[entity] for k,v in column.items()]
             fetch = ','.join(fields)
 
-            formatters = ""
-            for field in fields:
-                formatters = formatters + "%s, "
-            formatters = formatters[:-2]
-
             response = self.ac.get('%s' % entity, fetch=fetch, query=query, order="ObjectID", pagesize=200)
             for item in response:
                 field_values = []
+                formatters = ""
                 for field in fields:
                     value = getattr(item, field)
-                    integer_fields = [k for column in self.columns[entity] for k, v in column.items() if 'INTEGER' in column.values()]
-                    if field not in integer_fields:
-                         value = "'" + value + "'"
-                    field_values.append(value)
+                    if value:
+                        formatters = formatters + "%s, "
+                        number_fields = [k for column in self.columns[entity] for k,v in column.items() if 'INTEGER' in column.values() or 'QUANTITY' in column.values()]
+                        if field not in number_fields:
+                            value = "'" + value + "'"
+                        field_values.append(value)
+                formatters = formatters[:-2]
                 expression = "VALUES (%s)" % formatters % tuple(field_values)
-                #self.cursor.execute("INSERT INTO %s (%s) %s" %(entity,fetch,expression))
                 self.cursor.execute("INSERT INTO %s (%s) %s", (AsIs(entity), AsIs(fetch), AsIs(expression),))
         self.db.commit()
         self.db.close()
