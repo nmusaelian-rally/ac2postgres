@@ -1,12 +1,14 @@
-## AgileCentral data to Postgres example
-
-
-- uses [pyral](https://pypi.python.org/pypi/pyral) package for AgileCentral (Rally) Rest API
-- uses [psycopg2](https://pypi.python.org/pypi/psycopg2/2.6.2) postgres adapter
+## AgileCentral Postgres connector
 
 - creates postgres database tables and columns based on AC Rest API schema endpoint
 - sets column type constraints based on allowed values endpoints of respective attributes
 - inserts data into the tables
+
+**requirements**
+
+- python 3.5
+- [pyral](https://pypi.python.org/pypi/pyral) package for AgileCentral (Rally) Rest API, version 1.2.3
+- [psycopg2](https://pypi.python.org/pypi/psycopg2/2.6.2) postgres adapter, version 2.6.2
 
 **to run**
 
@@ -22,36 +24,6 @@ to create tables and columns and insert initial data invoke run.py with configur
 nmusaelian$ python3.5 run.py config.yml
 
 
-```
-a sample output in the terminal will show the columns and respective types:
-
-```
--CreationDate
----DATE
--ObjectID
----INTEGER
--ScheduleState
----STATE
--FixedInBuild
----STRING
--PlanEstimate
----QUANTITY
--Severity
----RATING
--State
----RATING
--CreationDate
----DATE
--ObjectID
----INTEGER
--ScheduleState
----STATE
--PlanEstimate
----QUANTITY
--c_AliasesOfMilady
----STRING
--c_Musketeer
----STRING
 ```
 
 optional: to verify the outcome in another terminal tab where you are logged in to the database:
