@@ -1,18 +1,13 @@
-connection:
-    url: https://rally1.rallydev.com/slm/webservice/v2.0
-    schema_url: https://rally1.rallydev.com/slm/schema/v2.0/workspace/123
-    user: user@co.com
-    password: secret
-    endpoint: workitem
-    witype: hierarchicalrequirement
-    
-params:
-    workspace: 123
-    pagesize: 200
-    start: 1
-    query: ''
-    fetch: CreationDate,ObjectID,PlanEstimate,State,ScheduleState
-    
+ac:
+    url:       rally1.rallydev.com
+    user:      user@co.com
+    password:  secret
+    apikey  :  _AbC123
+    workspace: W1
+    project:   P1
+    query: LastUpdateDate >= 2015-06-01
+    fetch: CreationDate,ObjectID,ScheduleState,PlanEstimate,State,Severity,FixedInBuild,c_Musketeer,c_AliasesOfMilady
+
 db:
     name: rally
     user: postgres
