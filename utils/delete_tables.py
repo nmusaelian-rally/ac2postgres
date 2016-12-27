@@ -4,11 +4,11 @@ import yaml
 with open('config.yml', 'r') as file:
     config = yaml.load(file)
 
-DB   = config["db"]["name"]
-USER = config["db"]["user"]
-PASS = config["db"]["password"]
-HOST = config["db"]["host"]
-PORT = config["db"]["port"]
+DB   = config['db']['name']
+USER = config['db']['user']
+PASS = config['db']['password']
+HOST = config['db']['host']
+PORT = config['db']['port']
 
 
 def connect():

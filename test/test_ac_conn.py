@@ -24,7 +24,7 @@ def test_schedule_state():
         assert schedule_state_attr_type == 'STATE'
 
 def test_defect_state():
-    fields = conn.config['params']['fetch']  # CreationDate,ObjectID,State,PlanEstimate,ScheduleState
+    fields = conn.config['ac']['fetch']  # CreationDate,ObjectID,State,PlanEstimate,ScheduleState
     entity = 'Defect'
     schema_item = conn.ac.typedef(entity)
     attributes = [attr for attr in schema_item.Attributes if attr.ElementName in fields]
@@ -57,14 +57,14 @@ def test_columns_cache():
 
     assert fetch == 'CreationDate,LastUpdateDate,ObjectID,ScheduleState,PlanEstimate,State'
 
-    query = conn.config['params']['query']
+    query = conn.config['ac']['query']
     response = conn.ac.get('%s' % entity, fetch=fields, query=query, order="ObjectID", pagesize=1, limit=1)
     assert response.target == entity
     lud = [item.LastUpdateDate for item in response][0] # e.g '2016-01-13T15:05:26.890Z'
     last_update_date_str = lud[:-5]
     last_update_date = datetime.strptime(last_update_date_str, "%Y-%m-%dT%H:%M:%S")
 
-    query = conn.config['params']['query']
+    query = conn.config['ac']['query']
     query_date_str = query.rsplit(' ', 1)[1] + 'T00:00:00'
     query_date = datetime.strptime(query_date_str, "%Y-%m-%dT%H:%M:%S")
 

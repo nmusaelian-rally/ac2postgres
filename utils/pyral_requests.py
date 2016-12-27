@@ -5,12 +5,12 @@ from pyral import Rally, rallyWorkset, RallyRESTAPIError
 with open('config.yml', 'r') as file:
     config = yaml.load(file)
 
-USER      = config["rally"]["user"]
-PASS      = config["rally"]["password"]
-APIKEY    = config["rally"]["apikey"]
-URL       = config["rally"]["url"]
-WORKSPACE = config["rally"]["workspace"]
-PROJECT   = config["rally"]["project"]
+USER      = config['ac']['user']
+PASS      = config['ac']['password']
+APIKEY    = config['ac']['apikey']
+URL       = config['ac']['url']
+WORKSPACE = config['ac']['workspace']
+PROJECT   = config['ac']['project']
 
 
 rally = Rally(URL, apikey=APIKEY, workspace=WORKSPACE, project=PROJECT)
@@ -26,7 +26,7 @@ def test_schedule_state():
         assert schedule_state_attr_type == 'STATE'
 
 def test_defect_state():
-    fields = config['params']['fetch']  # CreationDate,ObjectID,State,PlanEstimate,ScheduleState
+    fields = config['ac']['fetch']  # CreationDate,ObjectID,State,PlanEstimate,ScheduleState
     entity = 'Defect'
     schema_item = rally.typedef(entity)
     attributes = [attr for attr in schema_item.Attributes if attr.ElementName in fields]

@@ -7,16 +7,16 @@ errout = sys.stderr.write
 with open('config.yml', 'r') as file:
     config = yaml.load(file)
 
-some_workitems   = config["db"]["tables"]
-some_attributes  = config["params"]["fetch"]
+some_workitems   = config['db']['tables']
+some_attributes  = config['ac']['fetch']
 results = []
 
-USER      = config["rally"]["user"]
-PASS      = config["rally"]["password"]
-APIKEY    = config["rally"]["apikey"]
-URL       = config["rally"]["url"]
-WORKSPACE = config["rally"]["workspace"]
-PROJECT   = config["rally"]["project"]
+USER      = config['ac']['user']
+PASS      = config['ac']['password']
+APIKEY    = config['ac']['apikey']
+URL       = config['ac']['url']
+WORKSPACE = config['ac']['workspace']
+PROJECT   = config['ac']['project']
 
 try:
     rally = Rally(URL, apikey=APIKEY, workspace=WORKSPACE, project=PROJECT)

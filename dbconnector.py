@@ -11,7 +11,7 @@ class DBConnector:
         self.ac         = self.connect_ac()
         self.db         = self.connect_db()
         self.cursor     = self.db.cursor()
-        self.entities   = self.config["db"]["tables"].replace(',','').split()
+        self.entities   = self.config['db']['tables'].replace(',','').split()
         self.schema     = self.get_schema()
         self.columns = {}
 
@@ -23,12 +23,12 @@ class DBConnector:
     def connect_ac(self):
         errout    = sys.stderr.write
 
-        USER      = self.config["rally"]["user"]
-        PASS      = self.config["rally"]["password"]
-        APIKEY    = self.config["rally"]["apikey"]
-        URL       = self.config["rally"]["url"]
-        WORKSPACE = self.config["rally"]["workspace"]
-        PROJECT   = self.config["rally"]["project"]
+        USER      = self.config['ac']['user']
+        PASS      = self.config['ac']['password']
+        APIKEY    = self.config['ac']['apikey']
+        URL       = self.config['ac']['url']
+        WORKSPACE = self.config['ac']['workspace']
+        PROJECT   = self.config['ac']['project']
 
         try:
             ac = Rally(URL, apikey=APIKEY, workspace=WORKSPACE, project=PROJECT)
@@ -42,8 +42,8 @@ class DBConnector:
         errout = sys.stderr.write
 
         try:
-            db = psycopg2.connect(database=self.config["db"]["name"], user=self.config["db"]["user"],
-                password=self.config["db"]["password"], host=self.config["db"]["host"], port=self.config["db"]["port"])
+            db = psycopg2.connect(database=self.config['db']['name'], user=self.config['db']['user'],
+                password=self.config['db']['password'], host=self.config['db']['host'], port=self.config['db']['port'])
             return db
         except Exception as ex:
             errout(str(ex.args[0]))
@@ -61,7 +61,8 @@ class DBConnector:
             'INTEGER' : 'bigint',
             'DATE'    : 'timestamp with time zone',
             'BOOLEAN' : 'boolean default false',
-            'QUANTITY': 'double precision'  # e.g. Rally PlanEstimate's AttributeType: "QUANTITY"
+            'QUANTITY': 'double precision',  # e.g. Rally PlanEstimate's AttributeType: "QUANTITY"
+            'STRING'  : 'text'
         }[rally_type]
 
     def convert_list_to_string_of_quoted_items(self, values):
@@ -80,7 +81,7 @@ class DBConnector:
         return str
 
     def attributes_subset(self, element):
-        found = element.ElementName in self.config["params"]["fetch"]
+        found = element.ElementName in self.config["ac"]["fetch"]
         return found
 
 
@@ -119,7 +120,7 @@ class DBConnector:
             self.db.commit()
 
     def insert_init_data(self):
-        query = self.config['params']['query']
+        query = self.config['ac']['query']
         for entity in self.entities:
             fields = [k for column in self.columns[entity] for k,v in column.items()]
             fetch = ','.join(fields)

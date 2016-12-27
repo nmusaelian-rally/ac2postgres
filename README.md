@@ -1,14 +1,12 @@
 ## AgileCentral data to Postgres example
 
-**wsapiclient.py**
 
-- Agile Central WSAPI client, uses [requests](https://pypi.python.org/pypi/requests/2.11.1) package
+- uses [pyral](https://pypi.python.org/pypi/pyral) package for AgileCentral (Rally) Rest API
+- uses [psycopg2](https://pypi.python.org/pypi/psycopg2/2.6.2) postgres adapter
 
-**ac2postgres.py**
-
-- uses wsapiclient.py to talk to AgileCentral and [psycopg2](https://pypi.python.org/pypi/psycopg2/2.6.2) postgres adapter
-- creates postgres database tables and columns based on WSAPI schema endpoint
+- creates postgres database tables and columns based on AC Rest API schema endpoint
 - sets column type constraints based on allowed values endpoints of respective attributes
+- inserts data into the tables
 
 
 Outcome of running the script can be verified in the terminal:
@@ -41,13 +39,68 @@ sudo su postgres
 bash-3.2$ createdb rally
 ```
 in another terminal tab,
-to create tables and columns:
+to create tables and columns and insert initial data invoke run.py with configuration yml file argument:
 
 ```
-python3.5 ac2postgres.py
-```
-to insert data into table:
+nmusaelian$ python3.5 run.py config.yml
+
 
 ```
-python3.5 insert.py
+a sample output in the terminal will show the columns and respective types:
+
+```
+-CreationDate
+---DATE
+-ObjectID
+---INTEGER
+-ScheduleState
+---STATE
+-FixedInBuild
+---STRING
+-PlanEstimate
+---QUANTITY
+-Severity
+---RATING
+-State
+---RATING
+-CreationDate
+---DATE
+-ObjectID
+---INTEGER
+-ScheduleState
+---STATE
+-PlanEstimate
+---QUANTITY
+-c_AliasesOfMilady
+---STRING
+-c_Musketeer
+---STRING
+```
+
+optional: to verify the outcome in another terminal tab where you are logged in to the database:
+
+```
+bash-3.2$ psql -d rally
+psql (9.5.3)
+Type "help" for help.
+
+rally=# TABLE defect;
+        creationdate        |  objectid   | schedulestate | fixedinbuild | planestimate |   severity    |   state
+----------------------------+-------------+---------------+--------------+--------------+---------------+-----------
+ 2016-12-26 12:10:43.704-07 | 83320385428 | Defined       |              |              |               | Submitted
+ 2016-12-26 12:10:59.458-07 | 83320385700 | Completed     | Foobar       |            2 | Major Problem | Fixed
+ 2016-12-26 12:11:17.536-07 | 83320386200 | Defined       |              |              |               | Submitted
+ 2016-12-26 14:00:53.126-07 | 83325295984 | Defined       |              |            4 | Cosmetic      | Submitted
+(4 rows)
+
+
+rally=# TABLE hierarchicalrequirement;
+        creationdate        |  objectid   | schedulestate | planestimate | c_aliasesofmilady | c_musketeer
+----------------------------+-------------+---------------+--------------+-------------------+-------------
+ 2016-02-08 09:10:04.591-07 | 50980393212 | Defined       |            3 |                   |
+ 2016-02-08 09:10:31.358-07 | 50980394041 | Defined       |              |                   |
+ 2016-02-08 09:20:58.816-07 | 50981048482 | Defined       |           20 |                   |
+ 2016-12-26 14:00:32.879-07 | 83325293804 | Defined       |              | Anne de Breuil    | Atos
+(4 rows)
+
 ```

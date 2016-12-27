@@ -10,10 +10,10 @@ to check outcomes in terminal:
 with open('config.yml', 'r') as file:
     config = yaml.load(file)
 
-USER = config["db"]["user"]
-PASS = config["db"]["password"]
-HOST = config["db"]["host"]
-PORT = config["db"]["port"]
+USER = config['db']['user']
+PASS = config['db']['password']
+HOST = config['db']['host']
+PORT = config['db']['port']
 
 
 def create_db(dbname):

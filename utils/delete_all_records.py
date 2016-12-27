@@ -11,11 +11,11 @@ import yaml
 with open('config.yml', 'r') as file:
     config = yaml.load(file)
 
-DB   = config["db"]["name"]
-USER = config["db"]["user"]
-PASS = config["db"]["password"]
-HOST = config["db"]["host"]
-PORT = config["db"]["port"]
+DB   = config['db']['name']
+USER = config['db']['user']
+PASS = config['db']['password']
+HOST = config['db']['host']
+PORT = config['db']['port']
 
 
 def connect():
@@ -39,6 +39,7 @@ def truncate_table(table_name):
         print("oh, noes! " + e.pgerror)
 
 def test_truncate_table():
-    table_name = "hierarchicalrequirement"
+    #table_name = "hierarchicalrequirement"
+    table_name = "defect"
     result = truncate_table(table_name)
     assert result

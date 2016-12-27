@@ -12,11 +12,11 @@ to list of db tables in terminal:
 with open('config.yml', 'r') as file:
     config = yaml.load(file)
 
-DB   = config["db"]["name"]
-USER = config["db"]["user"]
-PASS = config["db"]["password"]
-HOST = config["db"]["host"]
-PORT = config["db"]["port"]
+DB   = config['db']['name']
+USER = config['db']['user']
+PASS = config['db']['password']
+HOST = config['db']['host']
+PORT = config['db']['port']
 
 def connect_db(dbname):
     con = None # to avoid "local variable con might be referenced before assignement

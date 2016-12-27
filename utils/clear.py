@@ -10,10 +10,10 @@ to check outcomes in terminal:
 with open('config.yml', 'r') as file:
     config = yaml.load(file)
 
-USER = config["db"]["user"]
-PASS = config["db"]["password"]
-HOST = config["db"]["host"]
-PORT = config["db"]["port"]
+USER = config['db']['user']
+PASS = config['db']['password']
+HOST = config['db']['host']
+PORT = config['db']['port']
 
 def drop_db(dbname):
     with psycopg2.connect(database="postgres", user=USER, password=PASS, host=HOST, port=PORT) as conn:
@@ -26,7 +26,7 @@ def drop_db(dbname):
 
 
 def test_drop_db():
-    dbname = config["db"]["name"]
+    dbname = config['db']['name']
     result = False
     try:
        result = drop_db(dbname)
