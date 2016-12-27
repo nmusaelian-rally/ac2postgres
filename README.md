@@ -8,29 +8,6 @@
 - sets column type constraints based on allowed values endpoints of respective attributes
 - inserts data into the tables
 
-
-Outcome of running the script can be verified in the terminal:
-
-```
-rally=# \d defect
-                Table "public.defect"
-    Column     |           Type           | Modifiers 
----------------+--------------------------+-----------
- creationdate  | timestamp with time zone | 
- objectid      | bigint                   | not null
- schedulestate | text                     | 
- planestimate  | numeric                  | 
- state         | text                     | 
-Indexes:
-    "defect_pkey" PRIMARY KEY, btree (objectid)
-Check constraints:
-    "defect_schedulestate_check" CHECK (schedulestate = ANY (ARRAY['Not Defined'::text, 'Defined'::text, 'In-Progress'::text, 'Completed'::text, 'Accepted'::text]))
-    "defect_state_check" CHECK (state = ANY (ARRAY['Submitted'::text, 'Open'::text, 'Fixed'::text, 'Closed'::text]))
-```
-**insert.py**
-
-- uses wsapicleint.py to get AgileCentral data (user stories) and populates the hierarchicalrequirements table
-
 **to run**
 
 switch to postgres user in the terminal and create a database if it does not exist, e.g.
@@ -83,6 +60,24 @@ optional: to verify the outcome in another terminal tab where you are logged in 
 bash-3.2$ psql -d rally
 psql (9.5.3)
 Type "help" for help.
+
+rally=# \d defect
+                Table "public.defect"
+    Column     |           Type           | Modifiers
+---------------+--------------------------+-----------
+ creationdate  | timestamp with time zone |
+ objectid      | bigint                   | not null
+ schedulestate | text                     |
+ fixedinbuild  | text                     |
+ planestimate  | double precision         |
+ severity      | text                     |
+ state         | text                     |
+Indexes:
+    "defect_pkey" PRIMARY KEY, btree (objectid)
+Check constraints:
+    "defect_schedulestate_check" CHECK (schedulestate = ANY (ARRAY['Defined'::text, 'In-Progress'::text, 'Completed'::text, 'Accepted'::text]))
+    "defect_severity_check" CHECK (severity = ANY (ARRAY[''::text, 'Crash/Data Loss'::text, 'Major Problem'::text, 'Minor Problem'::text, 'Cosmetic'::text, 'Test Value '::text]))
+    "defect_state_check" CHECK (state = ANY (ARRAY['Submitted'::text, 'Open'::text, 'Fixed'::text, 'Closed'::text]))
 
 rally=# TABLE defect;
         creationdate        |  objectid   | schedulestate | fixedinbuild | planestimate |   severity    |   state
