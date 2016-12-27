@@ -122,10 +122,7 @@ class DBConnector:
         query = self.config['params']['query']
         for entity in self.entities:
             fields = [k for column in self.columns[entity] for k,v in column.items()]
-            #non_empty_fields = fields[:]
-            non_empty_fields = []
             fetch = ','.join(fields)
-
             response = self.ac.get('%s' % entity, fetch=fetch, query=query, order="ObjectID", pagesize=200)
             for item in response:
                 field_values = []
@@ -133,14 +130,16 @@ class DBConnector:
                 empty_fields = []
                 for field in fields:
                     value = getattr(item, field)
-                    if value:
+                    # RATING   type e.g. Severity     when empty return 'None'.
+                    # QUANTITY type e.g. PlanEstimate when empty return None
+                    if not value or value == 'None':
+                        empty_fields.append(field)
+                    else:
                         formatters = formatters + "%s,"
                         number_fields = [k for column in self.columns[entity] for k,v in column.items() if 'INTEGER' in column.values() or 'QUANTITY' in column.values()]
-                        if field not in number_fields:
+                        if field not in number_fields and field != 'None':
                             value = "'" + value + "'"
                         field_values.append(value)
-                    else:
-                        empty_fields.append(field)
                 non_empty_fields = fields[:]
                 for field in empty_fields:
                     non_empty_fields.remove(field)
