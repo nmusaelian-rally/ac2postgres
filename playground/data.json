@@ -1,0 +1,50 @@
+
+{
+  "Players": [
+    {
+      "Name":"Diana Dbag",
+      "Money":1500
+    },
+    {
+      "Name":"Dil Pickle",
+      "Money":1500
+    }
+  ],
+  "Properties": [
+    {
+      "Name" :"Connecticut Ave One",
+      "Price": 10,
+      "Owner": null
+    },
+    {
+      "Name" :"Connecticut Ave Two",
+      "Price": 30,
+      "Owner": null
+    },
+    {
+      "Name" : "Connecticut Ave Three",
+      "Price": 15,
+      "Owner": null
+    },
+    {
+      "Name" : "Baltic Ave One",
+      "Price": 20,
+      "Owner": null
+    },
+    {
+      "Name" : "Baltic Ave Two",
+      "Price": 25,
+      "Owner": null
+    },
+    {
+      "Name" : "Short Line Railroad",
+      "Price": 15,
+      "Owner": null
+    },
+    {
+      "Name" : "Reading Railroad",
+      "Price": 15,
+      "Owner": null
+    }
+  ]
+}

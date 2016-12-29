@@ -1,0 +1,40 @@
+{
+  "TotalResultCount":"7",
+  "Results":[
+    {
+      "Name":  "Connecticut Ave One",
+      "Price": 100,
+      "Owner": null
+    },
+     {
+      "Name":  "Connecticut Ave Two",
+      "Price": 300,
+      "Owner": null
+    },
+     {
+      "Name":  "Connecticut Ave Three",
+      "Price": 150,
+      "Owner": null
+    },
+    {
+      "Name":  "Baltic Ave One",
+      "Price": 150,
+      "Owner": null
+    },
+     {
+      "Name":  "Baltic Ave Two",
+      "Price": 200,
+      "Owner": null
+    },
+    {
+      "Name":  "Short Line Railroad",
+      "Price": 150,
+      "Owner": null
+    },
+    {
+      "Name":  "Reading Railroad",
+      "Price": 150,
+      "Owner": null
+    }
+  ]
+}

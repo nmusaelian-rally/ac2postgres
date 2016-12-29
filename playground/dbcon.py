@@ -1,18 +1,19 @@
 import sys
-import requests
+import json
 import psycopg2
 from psycopg2.extensions import AsIs
 import yaml
-from pyral import Rally, rallyWorkset, RallyRESTAPIError
+from datetime import datetime, timezone
 
-class DBConnector:
+
+class DBCon:
     def __init__(self, config):
         self.config     = self.read_config(config)
-        self.ac         = self.connect_ac()
         self.db         = self.connect_db()
         self.cursor     = self.db.cursor()
         self.entities   = self.config['db']['tables'].replace(',','').split()
         self.schema     = self.get_schema()
+        self.index      = 0
         self.columns = {}
 
     def read_config(self, config_name):
@@ -20,23 +21,10 @@ class DBConnector:
             config = yaml.load(file)
         return config
 
-    def connect_ac(self):
-        errout    = sys.stderr.write
-
-        USER      = self.config['ac']['user']
-        PASS      = self.config['ac']['password']
-        APIKEY    = self.config['ac']['apikey']
-        URL       = self.config['ac']['url']
-        WORKSPACE = self.config['ac']['workspace']
-        PROJECT   = self.config['ac']['project']
-
-        try:
-            ac = Rally(URL, apikey=APIKEY, workspace=WORKSPACE, project=PROJECT)
-            return ac
-        except Exception as ex:
-            errout(str(ex.args[0]))
-            sys.exit(1)
-
+    def read_data(self, file):
+        with open(file) as json_data:
+            d = json.load(json_data)
+        return d['Results']
 
     def connect_db(self):
         errout = sys.stderr.write
@@ -49,12 +37,11 @@ class DBConnector:
             errout(str(ex.args[0]))
             sys.exit(1)
 
-
     def get_schema(self):
-        workitems_meta = []
-        for entity in self.entities:
-            workitems_meta.append(self.ac.typedef(entity))
-        return workitems_meta
+        with open('meta.json') as json_data:
+            m = json.load(json_data)
+        return m['Results']
+
 
     def matchTypes(self,rally_type):
         return {
@@ -65,73 +52,44 @@ class DBConnector:
             'STRING'  : 'text'
         }[rally_type]
 
-    def convert_list_to_string_of_quoted_items(self, values):
-        # Example of a list received as arg to this method:
-        # ['Submitted', 'Open', 'Fixed', 'Closed']
-        #
-        # Example of a string that we need to pass to
-        # ADD COLUMN %s text check (%s IN (%s) to populate IN (%s):
-        # 'Submitted','Open','Fixed','Closed'
-
-        str = ""
-        for i, item in enumerate(values):
-            str += "'" + item + "'"
-            if i < len(values) - 1:
-                str += ','
-        return str
-
     def attributes_subset(self, element):
-        found = element.ElementName in self.config["ac"]["fetch"]
+        found = element['ElementName'] in self.config["db"]["columns"]
         return found
 
 
     def create_tables_n_columns(self):
         for itemtype in self.schema:
-            attributes = list(filter(self.attributes_subset, itemtype.Attributes))
-            table_name = itemtype.ElementName
-            #populate list of dictionaries of column_name:type, e.g.
-            # [{'CreationDate': 'DATE'}, {'ObjectID': 'INTEGER'}, {'ScheduleState': 'STATE'}]
-            self.columns[table_name] = [{attr.ElementName: attr.AttributeType} for attr in attributes ]
+            attributes = list(filter(self.attributes_subset, itemtype['Attributes']))
+            table_name = itemtype['Name']
+            self.columns[table_name] = [{attr['ElementName']: attr['AttributeType']} for attr in attributes ]
             self.cursor.execute("CREATE TABLE %s ();", (AsIs(table_name),))
             self.cursor.execute("ALTER TABLE %s ADD COLUMN ID SERIAL PRIMARY KEY;",(AsIs(table_name),))
+            self.cursor.execute("ALTER TABLE %s ADD COLUMN _start TIME WITH TIME ZONE;", (AsIs(table_name),))
+            self.cursor.execute("ALTER TABLE %s ADD COLUMN _end TIME WITH TIME ZONE;", (AsIs(table_name),))
             for attr in attributes:
-                element_name = attr.ElementName
-                attribute_type = attr.AttributeType
-                allowed_values = attr.AllowedValues
+                element_name = attr['ElementName']
+                attribute_type = attr['AttributeType']
+                #allowed_values = attr.AllowedValues
 
                 print('-' + element_name)
                 print('---' + attribute_type)
 
-                if attr.ElementName == 'ObjectID':
-                    self.cursor.execute("ALTER TABLE %s ADD COLUMN %s bigint",
-                                (AsIs(table_name), AsIs(element_name),))
-                elif attr.AttributeType == 'RATING':
-                    rating_allowed_values = [a.StringValue for a in allowed_values]
-                    self.cursor.execute("ALTER TABLE %s ADD COLUMN %s text check (%s IN (%s)) ",
-                                (AsIs(table_name), AsIs(element_name), AsIs(element_name),
-                                 (AsIs(self.convert_list_to_string_of_quoted_items(rating_allowed_values))),))
-                elif attr.AttributeType == 'STATE':
-                    state_allowed_values = [a.StringValue for a in allowed_values]
-                    self.cursor.execute("ALTER TABLE %s ADD COLUMN %s text check (%s IN (%s)) ",
-                                (AsIs(table_name), AsIs(element_name), AsIs(element_name),
-                                 (AsIs(self.convert_list_to_string_of_quoted_items(state_allowed_values))),))
-                else:
-                    self.cursor.execute("ALTER TABLE %s ADD COLUMN %s %s",
+                self.cursor.execute("ALTER TABLE %s ADD COLUMN %s %s",
                                 (AsIs(table_name), AsIs(element_name), (AsIs(self.matchTypes(attribute_type))),))
             self.db.commit()
 
     def insert_init_data(self):
-        query = self.config['ac']['query']
         for entity in self.entities:
             fields = [k for column in self.columns[entity] for k,v in column.items()]
             fetch = ','.join(fields)
-            response = self.ac.get('%s' % entity, fetch=fetch, query=query, order="ObjectID", pagesize=200)
+            file_name = "%sz_%s.json" %(entity,self.index)
+            response = self.read_data(file_name)
             for item in response:
                 field_values = []
                 formatters = ""
                 empty_fields = []
                 for field in fields:
-                    value = getattr(item, field)
+                    value = item[field]
                     # RATING   type e.g. Severity     when empty return 'None'.
                     # QUANTITY type e.g. PlanEstimate when empty return None
                     if not value or value == 'None':
@@ -149,5 +107,7 @@ class DBConnector:
                 formatters = formatters[:-1] #remove trailing comma
                 expression = "VALUES (%s)" % formatters % tuple(field_values)
                 self.cursor.execute("INSERT INTO %s (%s) %s", (AsIs(entity), AsIs(columns), AsIs(expression),))
+            self.cursor.execute("UPDATE %s SET _start = %s", (AsIs(entity), datetime.now(timezone.utc),))
+        self.index += 1
         self.db.commit()
         self.db.close()
