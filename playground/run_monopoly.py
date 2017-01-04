@@ -15,7 +15,7 @@ Usage: python run.py <config_file.yml>
 ##########################################################################################
 
 import sys
-from dbconnector_runner import DBConnectorRunner
+from playground.dbcon_runner import DBConRunner
 
 
 PROG = 'dbconn'
@@ -25,7 +25,7 @@ PROG = 'dbconn'
 
 def main(args):
     try:
-        connector_runner = DBConnectorRunner(args[0])
+        connector_runner = DBConRunner(args)
         connector_runner.run(args)
     except Exception as msg:
         sys.stderr.write('ERROR: %s encountered an ERROR condition.\n %s' % (PROG, msg))

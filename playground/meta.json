@@ -1,0 +1,35 @@
+{
+  "TotalResultCount":"2",
+  "Results":[
+    {
+      "Name":"Player",
+      "Attributes":[
+        {
+          "ElementName":"Name",
+          "AttributeType":"STRING"
+        },
+        {
+          "ElementName":"Money",
+          "AttributeType":"QUANTITY"
+        }
+      ]
+    },
+    {
+      "Name":"Property",
+      "Attributes":[
+        {
+          "ElementName":"Name",
+          "AttributeType":"STRING"
+        },
+        {
+          "ElementName":"Price",
+          "AttributeType":"QUANTITY"
+        },
+        {
+          "ElementName":"Owner",
+          "AttributeType":"STRING"
+        }
+      ]
+    }
+  ]
+}

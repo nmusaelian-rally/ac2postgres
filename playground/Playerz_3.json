@@ -1,0 +1,15 @@
+{
+  "TotalResultCount":"2",
+  "Results":[
+    {
+      "Name":"Diana Dbag",
+      "Money": 1000,
+      "Properties":["Baltic Ave Two","Reading Railroad","Short Line Railroad"]
+    },
+    {
+      "Name":"Dil Pickle",
+      "Money": 1250,
+      "Properties":["Connecticut Ave One","Connecticut Ave Three"]
+    }
+  ]
+}
