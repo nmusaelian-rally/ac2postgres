@@ -164,7 +164,8 @@ class DBConnector:
     def update(self):
         query = self.config['ac']['query']
         for entity in self.entities:
-            records_to_update = []
+            records_to_set_end = []
+            new_row_oids = []
             second_cursor = self.db.cursor()
             fields = [k for column in self.columns[entity] for k, v in column.items()]
             fetch = ','.join(fields)
@@ -201,14 +202,18 @@ class DBConnector:
                     for row in self.cursor:
                         #print("comparing %s with %s" %(item[field], row[1]))
                         if getattr(item, field) != row[1]:
+                            if getattr(item, 'ObjectID') in new_row_oids:
+                                continue
+                            new_row_oids.append(getattr(item, 'ObjectID'))
                             #print ("DIFF! record id %s" %row[0])
-                            records_to_update.append(row[0])
+                            records_to_set_end.append(row[0])
                             second_cursor.execute("INSERT INTO %s (%s) %s RETURNING id;",(AsIs(entity), AsIs(columns), AsIs(expression),))
                             new_row_id = second_cursor.fetchone()[0]
                             print ("LAST inserted ID: %s" %new_row_id)
                             second_cursor.execute("UPDATE %s SET _start = %s WHERE id = %s",
                                      (AsIs(entity), datetime.now(timezone.utc), AsIs(new_row_id),))
-            for id in records_to_update:
+                        continue
+            for id in records_to_set_end:
                 self.cursor.execute("UPDATE %s SET _end = %s WHERE id = %s", (AsIs(entity), datetime.now(timezone.utc), AsIs(id),))
         self.db.commit()
         self.db.close()
