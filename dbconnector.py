@@ -6,6 +6,10 @@ import yaml
 from pyral import Rally, rallyWorkset, RallyRESTAPIError
 from datetime import datetime, timezone, timedelta
 import time
+import io
+from io import BytesIO
+from struct import pack
+import csv
 
 class DBConnector:
     def __init__(self, config):
@@ -17,6 +21,7 @@ class DBConnector:
         self.schema     = self.get_schema()
         self.columns = {}
         self.cache_columns()
+        self.init_data = {}
 
     def read_config(self, config_name):
         with open(config_name, 'r') as file:
@@ -26,9 +31,9 @@ class DBConnector:
     def connect_ac(self):
         errout    = sys.stderr.write
 
-        USER      = self.config['ac']['user']
-        PASS      = self.config['ac']['password']
-        APIKEY    = self.config['ac']['apikey']
+        USER      = self.config['ac'].get('user', None)
+        PASS      = self.config['ac'].get('password',None)
+        APIKEY    = self.config['ac'].get('apikey',None)
         URL       = self.config['ac']['url']
         WORKSPACE = self.config['ac']['workspace']
         PROJECT   = self.config['ac']['project']
@@ -101,7 +106,7 @@ class DBConnector:
             # [{'CreationDate': 'DATE'}, {'ObjectID': 'INTEGER'}, {'ScheduleState': 'STATE'}]
             #self.columns[table_name] = [{attr.ElementName: attr.AttributeType} for attr in attributes ]
             self.cursor.execute("CREATE TABLE %s ();", (AsIs(table_name),))
-            self.cursor.execute("ALTER TABLE %s ADD COLUMN ID SERIAL PRIMARY KEY;",(AsIs(table_name),))
+            #self.cursor.execute("ALTER TABLE %s ADD COLUMN ID SERIAL PRIMARY KEY;",(AsIs(table_name),))
             for attr in attributes:
                 element_name = attr.ElementName
                 attribute_type = attr.AttributeType
@@ -131,16 +136,20 @@ class DBConnector:
                                 (AsIs(table_name), AsIs(element_name), (AsIs(self.matchTypes(attribute_type))),))
             self.db.commit()
 
-    def insert_init_data(self):
+
+    def get_init_data(self):
         start_time = time.time()
+        db_start_time = time.time()
         query = self.config['ac']['query']
-        rows_per_table = {}
+        records_per_workitem = {}
         for entity in self.entities:
-            fields     = [k for column in self.columns[entity] for k,v in column.items()]
-            ref_fields = [k for column in self.columns[entity] for k,v in column.items() if v == 'OBJECT']
+            fields = [k for column in self.columns[entity] for k, v in column.items()]
+            ref_fields = [k for column in self.columns[entity] for k, v in column.items() if v == 'OBJECT']
             fetch = ','.join(fields)
-            response = self.ac.get('%s' % entity, fetch=fetch, query=query, order="ObjectID", pagesize=200)
-            number_of_rows = 0
+            response = self.ac.get('%s' % entity, fetch=fetch, query=query, order="ObjectID", pagesize=200, projectScopeDown=True)
+            #print("result count for %s: %s"%(entity, response.resultCount))
+            number_of_records = 0
+            self.init_data[entity] = []
             for item in response:
                 field_values = []
                 formatters = ""
@@ -150,27 +159,38 @@ class DBConnector:
                     # RATING   type e.g. Severity     when empty return 'None'.
                     # QUANTITY type e.g. PlanEstimate when empty return None
                     if not value or value == 'None':
-                        empty_fields.append(field)
+                        #empty_fields.append(field)
+                        value = None
                     else:
                         formatters = formatters + "%s,"
-                        number_fields = [k for column in self.columns[entity] for k,v in column.items() if 'INTEGER' in column.values() or 'QUANTITY' in column.values()]
+                        number_fields = [k for column in self.columns[entity] for k, v in column.items() if
+                                         'INTEGER' in column.values() or 'QUANTITY' in column.values()]
                         if field in ref_fields:
                             value = value._ref.split('/')[-1]
                         if field == 'FormattedID' or (field not in number_fields and field != 'None'):
                             value = "'" + str(value) + "'"
-                        field_values.append(value)
-                non_empty_fields = fields[:]
-                for field in empty_fields:
-                    non_empty_fields.remove(field)
-                columns = ','.join(non_empty_fields)
-                formatters = formatters[:-1] #remove trailing comma
-                expression = "VALUES (%s)" % formatters % tuple(field_values)
-                number_of_rows += 1
-                #print("inserting into table %s a new row # %s" %(entity, number_of_rows))
-                self.cursor.execute("INSERT INTO %s (%s) %s", (AsIs(entity), AsIs(columns), AsIs(expression),))
-            rows_per_table[entity] = {'Number of Columns': len(fields), 'Number of Rows':number_of_rows}
+                        #field_values.append(value)
+                    field_values.append(value) #NOTE change of indent compare to commented out line above. I want to append None values
+                self.init_data[entity].append(tuple(field_values))
+            elapsed_time_secs = time.time() - start_time
+            records_per_workitem[entity] = {'Number of Fields': len(fields), 'Number of Records': response.resultCount}
+            db_start_time = time.time()
+            self.save_init_data_to_csv(entity,fields)
+            self.copy_to_db(entity)
         self.db.commit()
-        self.db.close()
-        elapsed_time_secs = time.time() - start_time
-        print ("Number of columns and rows inserted per table\n: %s" %rows_per_table)
-        print ("It took: %s secs to insert" % timedelta(seconds=round(elapsed_time_secs)))
+        print("Number of fields and records per workitem type\n: %s" % records_per_workitem)
+        print("It took: %s secs to get AC data" % timedelta(seconds=round(elapsed_time_secs)))
+        elapsed_db_time_secs = time.time() - db_start_time
+        print("It took: %s secs to insert that data to db" % timedelta(seconds=round(elapsed_db_time_secs)))
+
+    def save_init_data_to_csv(self, table_name, fields):
+        file_name = "%s.csv" %table_name
+        writer = csv.writer(open(file_name, "w")) #, quoting=csv.QUOTE_NONE
+        for row in self.init_data[table_name]:
+            writer.writerow(row)
+
+    def copy_to_db(self,table_name):
+        file_name = "%s.csv" % table_name
+        with open(file_name, 'r', newline='') as f:
+            sql = "COPY %s FROM '/Users/nmusaelian/mypy35/myapps/db-connect/%s' DELIMITERS ',' CSV QUOTE '''';" %(table_name, file_name)
+            self.cursor.copy_expert(sql, f)
