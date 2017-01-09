@@ -138,11 +138,14 @@ class DBConnector:
 
 
     def get_init_data(self):
-        start_time = time.time()
-        db_start_time = time.time()
+        ac_start_times     = {}
+        ac_elapsed_times   = {}
+        db_start_times     = {}
+        db_elapsed_times   = {}
         query = self.config['ac']['query']
         records_per_workitem = {}
         for entity in self.entities:
+            ac_start_times[entity] = time.time()
             fields = [k for column in self.columns[entity] for k, v in column.items()]
             ref_fields = [k for column in self.columns[entity] for k, v in column.items() if v == 'OBJECT']
             fetch = ','.join(fields)
@@ -172,16 +175,19 @@ class DBConnector:
                         #field_values.append(value)
                     field_values.append(value) #NOTE change of indent compare to commented out line above. I want to append None values
                 self.init_data[entity].append(tuple(field_values))
-            elapsed_time_secs = time.time() - start_time
-            records_per_workitem[entity] = {'Number of Fields': len(fields), 'Number of Records': response.resultCount}
-            db_start_time = time.time()
+                records_per_workitem[entity] = {'Number of Fields': len(fields),'Number of Records': response.resultCount}
+                ac_elapsed_times[entity] = time.time() - ac_start_times[entity]
+
+            db_start_times[entity] = time.time()
             self.save_init_data_to_csv(entity,fields)
             self.copy_to_db(entity)
+            db_elapsed_times[entity] = time.time() - db_start_times[entity]
+            print("%s : %s" % (entity, records_per_workitem[entity]))
+            print("Time it took to get %s records from AC: %s" % (entity, timedelta(seconds=round(ac_elapsed_times[entity]))))
+            print("Time it took to copy %s records to db: %s" %  (entity, timedelta(seconds=round(db_elapsed_times[entity]))))
         self.db.commit()
-        print("Number of fields and records per workitem type\n: %s" % records_per_workitem)
-        print("It took: %s secs to get AC data" % timedelta(seconds=round(elapsed_time_secs)))
-        elapsed_db_time_secs = time.time() - db_start_time
-        print("It took: %s secs to insert that data to db" % timedelta(seconds=round(elapsed_db_time_secs)))
+
+
 
     def save_init_data_to_csv(self, table_name, fields):
         file_name = "%s.csv" %table_name
