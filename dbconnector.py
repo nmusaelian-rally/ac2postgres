@@ -25,9 +25,9 @@ class DBConnector:
     def connect_ac(self):
         errout    = sys.stderr.write
 
-        USER      = self.config['ac']['user']
-        PASS      = self.config['ac']['password']
-        APIKEY    = self.config['ac']['apikey']
+        USER      = self.config['ac'].get('user',None)
+        PASS      = self.config['ac'].get('password',None)
+        APIKEY    = self.config['ac'].get('apikey',None)
         URL       = self.config['ac']['url']
         WORKSPACE = self.config['ac']['workspace']
         PROJECT   = self.config['ac']['project']
