@@ -138,10 +138,12 @@ class DBConnector:
 
 
     def get_init_data(self):
-        ac_start_times     = {}
-        ac_elapsed_times   = {}
-        db_start_times     = {}
-        db_elapsed_times   = {}
+        ac_start_times       =  {}
+        ac_elapsed_times     =  {}
+        export_start_times   =  {}
+        export_elapsed_times =  {}
+        db_start_times       =  {}
+        db_elapsed_times      = {}
         query = self.config['ac']['query']
         records_per_workitem = {}
         for entity in self.entities:
@@ -175,18 +177,19 @@ class DBConnector:
                         #field_values.append(value)
                     field_values.append(value) #NOTE change of indent compare to commented out line above. I want to append None values
                 self.init_data[entity].append(tuple(field_values))
-                records_per_workitem[entity] = {'Number of Fields': len(fields),'Number of Records': response.resultCount}
-                ac_elapsed_times[entity] = time.time() - ac_start_times[entity]
-
-            db_start_times[entity] = time.time()
+            records_per_workitem[entity] = {'Number of Fields': len(fields),'Number of Records': response.resultCount}
+            ac_elapsed_times[entity] = time.time() - ac_start_times[entity]
+            print("Time it took to get %s records from AC: %s, %s" % (entity, ac_elapsed_times[entity], timedelta(seconds=round(ac_elapsed_times[entity]))))
+            export_start_times[entity] = time.time()
             self.save_init_data_to_csv(entity,fields)
+            export_elapsed_times[entity] = time.time() - export_start_times[entity]
+            print("Time it took to export %s records to a file: %s, %s" % (entity, export_elapsed_times[entity], timedelta(seconds=round(export_elapsed_times[entity]))))
+            db_start_times[entity] = time.time()
             self.copy_to_db(entity)
             db_elapsed_times[entity] = time.time() - db_start_times[entity]
-            print("%s : %s" % (entity, records_per_workitem[entity]))
-            print("Time it took to get %s records from AC: %s" % (entity, timedelta(seconds=round(ac_elapsed_times[entity]))))
-            print("Time it took to copy %s records to db: %s" %  (entity, timedelta(seconds=round(db_elapsed_times[entity]))))
+            #print("%s : %s" % (entity, records_per_workitem[entity]))
+            print("Time it took to copy %s records to db: %s, %s" %  (entity, db_elapsed_times[entity], timedelta(seconds=round(db_elapsed_times[entity]))))
         self.db.commit()
-
 
 
     def save_init_data_to_csv(self, table_name, fields):
@@ -200,3 +203,4 @@ class DBConnector:
         with open(file_name, 'r', newline='') as f:
             sql = "COPY %s FROM '/Users/nmusaelian/mypy35/myapps/db-connect/%s' DELIMITERS ',' CSV QUOTE '''';" %(table_name, file_name)
             self.cursor.copy_expert(sql, f)
+        print("Inserted %s rows in %s table" %(self.cursor.rowcount, table_name))
