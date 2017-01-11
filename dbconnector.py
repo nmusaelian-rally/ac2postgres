@@ -1,14 +1,11 @@
 import sys
-import requests
 import psycopg2
 from psycopg2.extensions import AsIs
 import yaml
 from pyral import Rally, rallyWorkset, RallyRESTAPIError
 from datetime import datetime, timezone, timedelta
 import time
-import io
-from io import BytesIO
-from struct import pack
+
 import csv
 
 class DBConnector:
@@ -20,6 +17,7 @@ class DBConnector:
         self.entities   = self.config['db']['tables'].replace(',','').split()
         self.schema     = self.get_schema()
         self.columns = {}
+        self.pi_states_map = {}
         self.cache_columns()
         self.init_data = {}
 
@@ -98,6 +96,20 @@ class DBConnector:
             table_name = itemtype.ElementName
             self.columns[table_name] = [{attr.ElementName: attr.AttributeType} for attr in attributes ]
 
+
+    def get_pi_states(self, pi_name):
+        fields = "TypeDef,Name,ObjectID"
+        query = 'TypeDef.Name = %s' % pi_name
+        response = self.ac.get('State', fetch=fields, query=query, pagesize=200)
+        if response.resultCount:
+            return  [state for state in response]
+
+    def map_pi_states(self, pi_name):
+        self.pi_states_map[pi_name] = []
+        states = self.get_pi_states(pi_name)
+        for state in states:
+            self.pi_states_map[pi_name].append({state.ObjectID: state.Name})
+
     def create_tables_n_columns(self):
         for itemtype in self.schema:
             attributes = list(filter(self.attributes_subset, itemtype.Attributes))
@@ -125,6 +137,12 @@ class DBConnector:
                     self.cursor.execute("ALTER TABLE %s ADD COLUMN %s text check (%s IN (%s)) ",
                                 (AsIs(table_name), AsIs(element_name), AsIs(element_name),
                                  (AsIs(self.convert_list_to_string_of_quoted_items(state_allowed_values))),))
+                elif attr.AttributeType == 'OBJECT' and attr.ElementName == 'State' :
+                    self.map_pi_states(table_name)
+                    state_allowed_values = [v for state in self.pi_states_map[table_name] for k, v in state.items()]
+                    self.cursor.execute("ALTER TABLE %s ADD COLUMN %s text check (%s IN (%s)) ",
+                                (AsIs(table_name), AsIs(element_name), AsIs(element_name),
+                                 (AsIs(self.convert_list_to_string_of_quoted_items(state_allowed_values))),))
                 elif attr.AttributeType == 'OBJECT':
                     self.cursor.execute("ALTER TABLE %s ADD COLUMN %s %s",
                                         (AsIs(table_name), AsIs(element_name), (AsIs('bigint')),))
@@ -149,7 +167,8 @@ class DBConnector:
         for entity in self.entities:
             ac_start_times[entity] = time.time()
             fields = [k for column in self.columns[entity] for k, v in column.items()]
-            ref_fields = [k for column in self.columns[entity] for k, v in column.items() if v == 'OBJECT']
+            ref_fields       = [k for column in self.columns[entity] for k, v in column.items() if (v == 'OBJECT' and k != 'State')]
+            pi_state_fields  = [k for column in self.columns[entity] for k, v in column.items() if (v == 'OBJECT' and k == 'State')]
             fetch = ','.join(fields)
             response = self.ac.get('%s' % entity, fetch=fetch, query=query, order="ObjectID", pagesize=200, projectScopeDown=True)
             #print("result count for %s: %s"%(entity, response.resultCount))
@@ -172,6 +191,9 @@ class DBConnector:
                                          'INTEGER' in column.values() or 'QUANTITY' in column.values()]
                         if field in ref_fields:
                             value = value._ref.split('/')[-1]
+                        if field in pi_state_fields:
+                            oid = value._ref.split('/')[-1]
+                            value = [v for state in self.pi_states_map[entity] for k, v in state.items() if k == int(oid)][0]
                         if field == 'FormattedID' or (field not in number_fields and field != 'None'):
                             value = "'" + str(value) + "'"
                         #field_values.append(value)
