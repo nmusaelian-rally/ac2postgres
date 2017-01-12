@@ -94,7 +94,8 @@ class DBConnector:
         for itemtype in self.schema:
             attributes = list(filter(self.attributes_subset, itemtype.Attributes))
             table_name = itemtype.ElementName
-            self.columns[table_name] = [{attr.ElementName: attr.AttributeType} for attr in attributes ]
+            #self.columns[table_name] = [{attr.ElementName: attr.AttributeType} for attr in attributes ]
+            self.columns[table_name] = [{attr.ElementName: (attr.AttributeType, attr.SchemaType)} for attr in attributes]
 
 
     def get_pi_states(self, pi_name):
@@ -143,6 +144,9 @@ class DBConnector:
                     self.cursor.execute("ALTER TABLE %s ADD COLUMN %s text check (%s IN (%s)) ",
                                 (AsIs(table_name), AsIs(element_name), AsIs(element_name),
                                  (AsIs(self.convert_list_to_string_of_quoted_items(state_allowed_values))),))
+                elif attr.AttributeType == 'OBJECT' and attr.SchemaType == 'User':
+                    self.cursor.execute("ALTER TABLE %s ADD COLUMN %s %s",
+                                        (AsIs(table_name), AsIs(element_name), (AsIs('text')),))
                 elif attr.AttributeType == 'OBJECT':
                     self.cursor.execute("ALTER TABLE %s ADD COLUMN %s %s",
                                         (AsIs(table_name), AsIs(element_name), (AsIs('bigint')),))
@@ -167,10 +171,11 @@ class DBConnector:
         for entity in self.entities:
             ac_start_times[entity] = time.time()
             fields = [k for column in self.columns[entity] for k, v in column.items()]
-            ref_fields       = [k for column in self.columns[entity] for k, v in column.items() if (v == 'OBJECT' and k != 'State')]
-            pi_state_fields  = [k for column in self.columns[entity] for k, v in column.items() if (v == 'OBJECT' and k == 'State')]
+            ref_fields       = [k for column in self.columns[entity] for k, v in column.items() if (v[0] == 'OBJECT' and v[1] != 'User' and k != 'State')]
+            pi_state_fields  = [k for column in self.columns[entity] for k, v in column.items() if (v[0] == 'OBJECT' and k == 'State')]
+            user_fields      = [k for column in self.columns[entity] for k, v in column.items() if v[1] == 'User']
             fetch = ','.join(fields)
-            response = self.ac.get('%s' % entity, fetch=fetch, query=query, order="ObjectID", pagesize=200, projectScopeDown=True)
+            response = self.ac.get('%s' % entity, fetch=fetch, query=query, order="ObjectID", pagesize=2000, projectScopeDown=True)
             #print("result count for %s: %s"%(entity, response.resultCount))
             number_of_records = 0
             self.init_data[entity] = []
@@ -187,14 +192,18 @@ class DBConnector:
                         value = None
                     else:
                         formatters = formatters + "%s,"
-                        number_fields = [k for column in self.columns[entity] for k, v in column.items() if
-                                         'INTEGER' in column.values() or 'QUANTITY' in column.values()]
+                        number_fields = [k for column in self.columns[entity] for k, v in column.items()
+                                         for v in column.values() if'INTEGER' in v or 'QUANTITY' in v]
                         if field in ref_fields:
-                            value = value._ref.split('/')[-1]
-                        if field in pi_state_fields:
+                            value = value.ObjectID
+                        elif field in pi_state_fields:
                             oid = value._ref.split('/')[-1]
                             value = [v for state in self.pi_states_map[entity] for k, v in state.items() if k == int(oid)][0]
-                        if field == 'FormattedID' or (field not in number_fields and field != 'None'):
+                        elif field in user_fields:
+                            value = value.UserName
+                        #elif field == 'FormattedID' or (field not in number_fields and field != 'None'):
+                            #value = "'" + str(value) + "'"
+                        else:
                             value = "'" + str(value) + "'"
                         #field_values.append(value)
                     field_values.append(value) #NOTE change of indent compare to commented out line above. I want to append None values
