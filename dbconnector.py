@@ -144,9 +144,6 @@ class DBConnector:
                     self.cursor.execute("ALTER TABLE %s ADD COLUMN %s text check (%s IN (%s)) ",
                                 (AsIs(table_name), AsIs(element_name), AsIs(element_name),
                                  (AsIs(self.convert_list_to_string_of_quoted_items(state_allowed_values))),))
-                elif attr.AttributeType == 'OBJECT' and attr.SchemaType == 'User':
-                    self.cursor.execute("ALTER TABLE %s ADD COLUMN %s %s",
-                                        (AsIs(table_name), AsIs(element_name), (AsIs('text')),))
                 elif attr.AttributeType == 'OBJECT':
                     self.cursor.execute("ALTER TABLE %s ADD COLUMN %s %s",
                                         (AsIs(table_name), AsIs(element_name), (AsIs('bigint')),))
@@ -169,57 +166,72 @@ class DBConnector:
         query = self.config['ac']['query']
         records_per_workitem = {}
         for entity in self.entities:
-            ac_start_times[entity] = time.time()
-            fields = [k for column in self.columns[entity] for k, v in column.items()]
-            ref_fields       = [k for column in self.columns[entity] for k, v in column.items() if (v[0] == 'OBJECT' and v[1] != 'User' and k != 'State')]
-            pi_state_fields  = [k for column in self.columns[entity] for k, v in column.items() if (v[0] == 'OBJECT' and k == 'State')]
-            user_fields      = [k for column in self.columns[entity] for k, v in column.items() if v[1] == 'User']
-            fetch = ','.join(fields)
-            response = self.ac.get('%s' % entity, fetch=fetch, query=query, order="ObjectID", pagesize=2000, projectScopeDown=True)
-            #print("result count for %s: %s"%(entity, response.resultCount))
-            number_of_records = 0
-            self.init_data[entity] = []
-            for item in response:
-                field_values = []
-                formatters = ""
-                empty_fields = []
-                for field in fields:
-                    value = getattr(item, field)
-                    # RATING   type e.g. Severity     when empty return 'None'.
-                    # QUANTITY type e.g. PlanEstimate when empty return None
-                    if not value or value == 'None':
-                        #empty_fields.append(field)
-                        value = None
-                    else:
-                        formatters = formatters + "%s,"
-                        number_fields = [k for column in self.columns[entity] for k, v in column.items()
-                                         for v in column.values() if'INTEGER' in v or 'QUANTITY' in v]
-                        if field in ref_fields:
-                            value = value.ObjectID
-                        elif field in pi_state_fields:
-                            oid = value._ref.split('/')[-1]
-                            value = [v for state in self.pi_states_map[entity] for k, v in state.items() if k == int(oid)][0]
-                        elif field in user_fields:
-                            value = value.UserName
-                        #elif field == 'FormattedID' or (field not in number_fields and field != 'None'):
-                            #value = "'" + str(value) + "'"
-                        else:
-                            value = "'" + str(value) + "'"
-                        #field_values.append(value)
-                    field_values.append(value) #NOTE change of indent compare to commented out line above. I want to append None values
-                self.init_data[entity].append(tuple(field_values))
-            records_per_workitem[entity] = {'Number of Fields': len(fields),'Number of Records': response.resultCount}
-            ac_elapsed_times[entity] = time.time() - ac_start_times[entity]
-            print("Time it took to get %s records from AC: %s, %s" % (entity, ac_elapsed_times[entity], timedelta(seconds=round(ac_elapsed_times[entity]))))
-            export_start_times[entity] = time.time()
-            self.save_init_data_to_csv(entity,fields)
-            export_elapsed_times[entity] = time.time() - export_start_times[entity]
-            print("Time it took to export %s records to a file: %s, %s" % (entity, export_elapsed_times[entity], timedelta(seconds=round(export_elapsed_times[entity]))))
-            db_start_times[entity] = time.time()
-            self.copy_to_db(entity)
-            db_elapsed_times[entity] = time.time() - db_start_times[entity]
-            #print("%s : %s" % (entity, records_per_workitem[entity]))
-            print("Time it took to copy %s records to db: %s, %s" %  (entity, db_elapsed_times[entity], timedelta(seconds=round(db_elapsed_times[entity]))))
+            try:
+                ac_start_times[entity] = time.time()
+                fields = [k for column in self.columns[entity] for k, v in column.items()]
+                #ref_fields       = [k for column in self.columns[entity] for k, v in column.items() if (v == 'OBJECT' and k != 'State')]
+                ref_fields = [k for column in self.columns[entity] for k, v in column.items() if
+                              (v[0] == 'OBJECT' and k != 'State')] # later when resolving user add this condition: and v[1] != 'User'
+                #pi_state_fields  = [k for column in self.columns[entity] for k, v in column.items() if (v == 'OBJECT' and k == 'State')]
+                pi_state_fields = [k for column in self.columns[entity] for k, v in column.items() if
+                                   (v[0] == 'OBJECT' and k == 'State')]
+                fetch = ','.join(fields)
+                response = self.ac.get('%s' % entity, fetch=fetch, query=query, order="ObjectID", pagesize=1000, projectScopeDown=True)
+                #print("result count for %s: %s"%(entity, response.resultCount))
+                number_of_records = 0
+                self.init_data[entity] = []
+                try:
+                    for item in response:
+                        field_values = []
+                        formatters = ""
+                        empty_fields = []
+                        try:
+                            for field in fields:
+                                value = getattr(item, field)
+                                # RATING   type e.g. Severity     when empty return 'None'.
+                                # QUANTITY type e.g. PlanEstimate when empty return None
+                                if not value or value == 'None':
+                                    #empty_fields.append(field)
+                                    value = None
+                                else:
+                                    formatters = formatters + "%s,"
+                                    #number_fields = [k for column in self.columns[entity] for k, v in column.items() if
+                                                     #'INTEGER' in column.values() or 'QUANTITY' in column.values()]
+                                    number_fields = [k for column in self.columns[entity] for k, v in column.items()
+                                                         for v in column.values() if 'INTEGER' in v or 'QUANTITY' in v]
+                                    if field in ref_fields:
+                                        value = value._ref.split('/')[-1]
+                                    elif field in pi_state_fields:
+                                        oid = value._ref.split('/')[-1]
+                                        value = [v for state in self.pi_states_map[entity] for k, v in state.items() if k == int(oid)][0]
+                                    elif field == 'FormattedID' or (field not in number_fields and field != 'None'):
+                                        value = "'" + str(value) + "'"
+                                        #field_values.append(value)
+                                field_values.append(value) #NOTE change of indent compare to commented out line above. I want to append None values
+                        except:
+                            print("Problem in fields loop, skipping item")
+                            e = sys.exc_info()[0]
+                            continue
+                        self.init_data[entity].append(tuple(field_values))
+                except:
+                    print("Problem in item loop, skipping item")
+                    e = sys.exc_info()[0]
+                    continue
+                records_per_workitem[entity] = {'Number of Fields': len(fields),'Number of Records': response.resultCount}
+                ac_elapsed_times[entity] = time.time() - ac_start_times[entity]
+                print("Time it took to get %s records from AC: %s, %s" % (entity, ac_elapsed_times[entity], timedelta(seconds=round(ac_elapsed_times[entity]))))
+                export_start_times[entity] = time.time()
+                self.save_init_data_to_csv(entity,fields)
+                export_elapsed_times[entity] = time.time() - export_start_times[entity]
+                print("Time it took to export %s records to a file: %s, %s" % (entity, export_elapsed_times[entity], timedelta(seconds=round(export_elapsed_times[entity]))))
+                db_start_times[entity] = time.time()
+                self.copy_to_db(entity)
+                db_elapsed_times[entity] = time.time() - db_start_times[entity]
+                #print("%s : %s" % (entity, records_per_workitem[entity]))
+                print("Time it took to copy %s records to db: %s, %s" %  (entity, db_elapsed_times[entity], timedelta(seconds=round(db_elapsed_times[entity]))))
+            except:
+                print("Problem in entity loop")
+                e = sys.exc_info()[0]
         self.db.commit()
 
 
