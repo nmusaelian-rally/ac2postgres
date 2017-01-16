@@ -14,7 +14,7 @@ class DBConnector:
         self.ac         = self.connect_ac()
         self.db         = self.connect_db()
         self.cursor     = self.db.cursor()
-        self.entities   = self.config['db']['tables'].replace(',','').split()
+        self.entities   = self.config['db']['tables'].replace(',', '').split()
         self.schema     = self.get_schema()
         self.columns = {}
         self.pi_states_map = {}
@@ -55,6 +55,8 @@ class DBConnector:
             errout(str(ex.args[0]))
             sys.exit(1)
 
+    # def get_entities(self):
+    #     self.config['db']['tables'].replace(',', '').split()
 
     def get_schema(self):
         workitems_meta = []
@@ -111,10 +113,20 @@ class DBConnector:
         for state in states:
             self.pi_states_map[pi_name].append({state.ObjectID: state.Name})
 
+    def get_username(self,oid):
+        fields = 'ObjectID,UserName'
+        query  = 'ObjectID = %s' % oid
+        response = self.ac.get('User', fetch=fields, query=query, pagesize=200)
+        if response.resultCount:
+            return  [user for user in response][0]
+
     def create_tables_n_columns(self):
         for itemtype in self.schema:
             attributes = list(filter(self.attributes_subset, itemtype.Attributes))
-            table_name = itemtype.ElementName
+            entity = itemtype.ElementName
+            table_name = entity
+            if table_name == 'User':
+                table_name = 'Users'
             #populate list of dictionaries of column_name:type, e.g.
             # [{'CreationDate': 'DATE'}, {'ObjectID': 'INTEGER'}, {'ScheduleState': 'STATE'}]
             #self.columns[table_name] = [{attr.ElementName: attr.AttributeType} for attr in attributes ]
@@ -138,9 +150,15 @@ class DBConnector:
                     self.cursor.execute("ALTER TABLE %s ADD COLUMN %s text check (%s IN (%s)) ",
                                 (AsIs(table_name), AsIs(element_name), AsIs(element_name),
                                  (AsIs(self.convert_list_to_string_of_quoted_items(state_allowed_values))),))
+                elif attr.AttributeType == 'OBJECT' and attr.SchemaType == 'User':
+                    if self.config['ac']['resolveUser']:
+                        self.cursor.execute("ALTER TABLE %s ADD COLUMN %s %s",(AsIs(table_name), AsIs(element_name), (AsIs('text')),))
+                    else:
+                        self.cursor.execute("ALTER TABLE %s ADD COLUMN %s %s",(AsIs(table_name), AsIs(element_name), (AsIs('bigint')),))
+
                 elif attr.AttributeType == 'OBJECT' and attr.ElementName == 'State' :
-                    self.map_pi_states(table_name)
-                    state_allowed_values = [v for state in self.pi_states_map[table_name] for k, v in state.items()]
+                    self.map_pi_states(entity)
+                    state_allowed_values = [v for state in self.pi_states_map[entity] for k, v in state.items()]
                     self.cursor.execute("ALTER TABLE %s ADD COLUMN %s text check (%s IN (%s)) ",
                                 (AsIs(table_name), AsIs(element_name), AsIs(element_name),
                                  (AsIs(self.convert_list_to_string_of_quoted_items(state_allowed_values))),))
@@ -169,14 +187,13 @@ class DBConnector:
             try:
                 ac_start_times[entity] = time.time()
                 fields = [k for column in self.columns[entity] for k, v in column.items()]
-                #ref_fields       = [k for column in self.columns[entity] for k, v in column.items() if (v == 'OBJECT' and k != 'State')]
                 ref_fields = [k for column in self.columns[entity] for k, v in column.items() if
-                              (v[0] == 'OBJECT' and k != 'State')] # later when resolving user add this condition: and v[1] != 'User'
-                #pi_state_fields  = [k for column in self.columns[entity] for k, v in column.items() if (v == 'OBJECT' and k == 'State')]
+                              (v[0] == 'OBJECT' and k != 'State' and v[1] != 'User')] # later when resolving user add this condition: and v[1] != 'User'
                 pi_state_fields = [k for column in self.columns[entity] for k, v in column.items() if
                                    (v[0] == 'OBJECT' and k == 'State')]
+                user_fields = [k for column in self.columns[entity] for k, v in column.items() if v[1] == 'User']
                 fetch = ','.join(fields)
-                response = self.ac.get('%s' % entity, fetch=fetch, query=query, order="ObjectID", pagesize=1000, projectScopeDown=True)
+                response = self.ac.get('%s' % entity, fetch=fetch, query=query, order="ObjectID", pagesize=2000, projectScopeDown=True)
                 #print("result count for %s: %s"%(entity, response.resultCount))
                 number_of_records = 0
                 self.init_data[entity] = []
@@ -195,12 +212,15 @@ class DBConnector:
                                     value = None
                                 else:
                                     formatters = formatters + "%s,"
-                                    #number_fields = [k for column in self.columns[entity] for k, v in column.items() if
-                                                     #'INTEGER' in column.values() or 'QUANTITY' in column.values()]
                                     number_fields = [k for column in self.columns[entity] for k, v in column.items()
                                                          for v in column.values() if 'INTEGER' in v or 'QUANTITY' in v]
-                                    if field in ref_fields:
-                                        value = value._ref.split('/')[-1]
+                                    if field in user_fields:
+                                        if self.config['ac']['resolveUser']:
+                                            value = value.Name
+                                        else:
+                                            value = int(value._ref.split('/')[-1])
+                                    elif field in ref_fields:
+                                        value = int(value._ref.split('/')[-1])
                                     elif field in pi_state_fields:
                                         oid = value._ref.split('/')[-1]
                                         value = [v for state in self.pi_states_map[entity] for k, v in state.items() if k == int(oid)][0]
@@ -209,13 +229,13 @@ class DBConnector:
                                         #field_values.append(value)
                                 field_values.append(value) #NOTE change of indent compare to commented out line above. I want to append None values
                         except:
-                            print("Problem in fields loop, skipping item")
                             e = sys.exc_info()[0]
+                            print("Problem in fields loop, skipping item\n%s" %e)
                             continue
                         self.init_data[entity].append(tuple(field_values))
                 except:
-                    print("Problem in item loop, skipping item")
                     e = sys.exc_info()[0]
+                    print("Problem in item loop, skipping item\n%s" %e)
                     continue
                 records_per_workitem[entity] = {'Number of Fields': len(fields),'Number of Records': response.resultCount}
                 ac_elapsed_times[entity] = time.time() - ac_start_times[entity]
@@ -229,21 +249,31 @@ class DBConnector:
                 db_elapsed_times[entity] = time.time() - db_start_times[entity]
                 #print("%s : %s" % (entity, records_per_workitem[entity]))
                 print("Time it took to copy %s records to db: %s, %s" %  (entity, db_elapsed_times[entity], timedelta(seconds=round(db_elapsed_times[entity]))))
-            except:
-                print("Problem in entity loop")
-                e = sys.exc_info()[0]
+            except TypeError as e:
+                print("Problem in entity loop\n%s" %e)
         self.db.commit()
 
 
-    def save_init_data_to_csv(self, table_name, fields):
-        file_name = "%s.csv" %table_name
-        writer = csv.writer(open(file_name, "w")) #, quoting=csv.QUOTE_NONE
-        for row in self.init_data[table_name]:
-            writer.writerow(row)
+    def save_init_data_to_csv(self, entity, fields):
+        file_name = "%s.csv" %entity
+        try:
+            writer = csv.writer(open(file_name, "w")) #, quoting=csv.QUOTE_NONE
+            for row in self.init_data[entity]:
+                writer.writerow(row)
+        except:
+            e = sys.exc_info()[0]
+            print("Problem in saving AC data to csv file\n%s" %e)
 
-    def copy_to_db(self,table_name):
-        file_name = "%s.csv" % table_name
-        with open(file_name, 'r', newline='') as f:
-            sql = "COPY %s FROM '/Users/nmusaelian/mypy35/myapps/db-connect/%s' DELIMITERS ',' CSV QUOTE '''';" %(table_name, file_name)
-            self.cursor.copy_expert(sql, f)
-        print("Inserted %s rows in %s table" %(self.cursor.rowcount, table_name))
+
+    def copy_to_db(self, entity):
+        table_name = entity
+        if entity == 'User':
+            table_name = 'Users'
+        file_name = "%s.csv" % entity
+        try:
+            with open(file_name, 'r', newline='') as f:
+                sql = "COPY %s FROM '/Users/nmusaelian/mypy35/myapps/db-connect/%s' DELIMITERS ',' CSV QUOTE '''';" % (table_name, file_name)
+                self.cursor.copy_expert(sql, f)
+            print("Inserted %s rows in %s table" % (self.cursor.rowcount, table_name))
+        except psycopg2.Error as e:
+            print("pycopg2 Problem in copying AC data to database\n%s" % e)
