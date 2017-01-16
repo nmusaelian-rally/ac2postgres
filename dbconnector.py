@@ -14,7 +14,7 @@ class DBConnector:
         self.ac         = self.connect_ac()
         self.db         = self.connect_db()
         self.cursor     = self.db.cursor()
-        self.entities   = self.config['db']['tables'].replace(',', '').split()
+        self.entities   = self.config['db']['tables'].replace(',', ' ').split()
         self.schema     = self.get_schema()
         self.columns = {}
         self.pi_states_map = {}
