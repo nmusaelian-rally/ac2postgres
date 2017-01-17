@@ -277,3 +277,5 @@ class DBConnector:
             print("Inserted %s rows in %s table" % (self.cursor.rowcount, table_name))
         except psycopg2.Error as e:
             print("pycopg2 Problem in copying AC data to database\n%s" % e)
+
+        self.cursor.execute("ALTER TABLE %s ADD PRIMARY KEY (objectid);" %table_name)
