@@ -1,11 +1,11 @@
-import sys
+import os,sys
 import psycopg2
 from psycopg2.extensions import AsIs
 import yaml
 from pyral import Rally, rallyWorkset, RallyRESTAPIError
 from datetime import datetime, timezone, timedelta
 import time
-
+import re
 import csv
 
 class DBConnector:
@@ -70,7 +70,8 @@ class DBConnector:
             'DATE'    : 'timestamp with time zone',
             'BOOLEAN' : 'boolean default false',
             'QUANTITY': 'double precision',  # e.g. Rally PlanEstimate's AttributeType: "QUANTITY"
-            'STRING'  : 'text'
+            'STRING'  : 'text',
+            'DECIMAL' : 'numeric'
         }[rally_type]
 
     def convert_list_to_string_of_quoted_items(self, values):
@@ -89,7 +90,11 @@ class DBConnector:
         return str
 
     def attributes_subset(self, element):
-        found = element.ElementName in self.config["ac"]["fetch"]
+        found = False
+        #found = element.ElementName in self.config["ac"]["fetch"]
+        result = re.search('\\b%s\\b' %element.ElementName, self.config["ac"]["fetch"])
+        if result:
+            found = True
         return found
 
     def cache_columns(self):
@@ -165,6 +170,9 @@ class DBConnector:
                 elif attr.AttributeType == 'OBJECT':
                     self.cursor.execute("ALTER TABLE %s ADD COLUMN %s %s",
                                         (AsIs(table_name), AsIs(element_name), (AsIs('bigint')),))
+                elif attr.AttributeType == 'COLLECTION':
+                    #print('skipped %s because %s is not supported' %(element_name, attr.AttributeType))
+                    pass
                 elif attr.ElementName == 'FormattedID':
                     self.cursor.execute("ALTER TABLE %s ADD COLUMN %s %s",
                                         (AsIs(table_name), AsIs(element_name), (AsIs('text')),))
@@ -192,6 +200,8 @@ class DBConnector:
                 pi_state_fields = [k for column in self.columns[entity] for k, v in column.items() if
                                    (v[0] == 'OBJECT' and k == 'State')]
                 user_fields = [k for column in self.columns[entity] for k, v in column.items() if v[1] == 'User']
+                collection_fileds = [k for column in self.columns[entity] for k, v in column.items()
+                                     for v in column.values() if 'COLLECTION' in v]
                 fetch = ','.join(fields)
                 response = self.ac.get('%s' % entity, fetch=fetch, query=query, order="ObjectID", pagesize=2000, projectScopeDown=True)
                 #print("result count for %s: %s"%(entity, response.resultCount))
@@ -204,6 +214,8 @@ class DBConnector:
                         empty_fields = []
                         try:
                             for field in fields:
+                                if field in collection_fileds:
+                                    continue
                                 value = getattr(item, field)
                                 # RATING   type e.g. Severity     when empty return 'None'.
                                 # QUANTITY type e.g. PlanEstimate when empty return None
@@ -211,7 +223,7 @@ class DBConnector:
                                     #empty_fields.append(field)
                                     value = None
                                 else:
-                                    formatters = formatters + "%s,"
+                                    formatters = formatters + "%s," #keep adding %s, for example, for two fields it resolves to: '%s,%s'
                                     number_fields = [k for column in self.columns[entity] for k, v in column.items()
                                                          for v in column.values() if 'INTEGER' in v or 'QUANTITY' in v]
                                     if field in user_fields:
@@ -226,13 +238,15 @@ class DBConnector:
                                         value = [v for state in self.pi_states_map[entity] for k, v in state.items() if k == int(oid)][0]
                                     elif field == 'FormattedID' or (field not in number_fields and field != 'None'):
                                         value = "'" + str(value) + "'"
+                                    elif field in collection_fileds:
+                                        pass
                                         #field_values.append(value)
                                 field_values.append(value) #NOTE change of indent compare to commented out line above. I want to append None values
                         except:
                             e = sys.exc_info()[0]
                             print("Problem in fields loop, skipping item\n%s" %e)
                             continue
-                        self.init_data[entity].append(tuple(field_values))
+                        self.init_data[entity].append(tuple(field_values)) # example: {'Epic': [("'E863'", 4)]} where 4 is DirectChildrenCount
                 except:
                     e = sys.exc_info()[0]
                     print("Problem in item loop, skipping item\n%s" %e)
@@ -270,9 +284,10 @@ class DBConnector:
         if entity == 'User':
             table_name = 'Users'
         file_name = "%s.csv" % entity
+        full_path = '%s/%s' % (os.getcwd(), file_name)
         try:
             with open(file_name, 'r', newline='') as f:
-                sql = "COPY %s FROM '/Users/nmusaelian/mypy35/myapps/db-connect/%s' DELIMITERS ',' CSV QUOTE '''';" % (table_name, file_name)
+                sql = "COPY %s FROM '%s' DELIMITERS ',' CSV QUOTE '''';" % (table_name, full_path)
                 self.cursor.copy_expert(sql, f)
             print("Inserted %s rows in %s table" % (self.cursor.rowcount, table_name))
         except psycopg2.Error as e:
