@@ -287,7 +287,12 @@ class DBConnector:
         full_path = '%s/%s' % (os.getcwd(), file_name)
         try:
             with open(file_name, 'r', newline='') as f:
-                sql = "COPY %s FROM '%s' DELIMITERS ',' CSV QUOTE '''';" % (table_name, full_path)
+                #sql = "COPY %s FROM '%s' DELIMITERS ',' CSV QUOTE '''';" % (table_name, full_path)
+                #sql = self.cursor.mogrify("COPY %s FROM '%s' DELIMITERS ',';",(AsIs(table_name), AsIs(full_path),))
+                #sql = self.cursor.mogrify("COPY %s FROM '%s' DELIMITERS ',';"% (table_name, full_path))
+                #sql = self.cursor.mogrify("COPY %s FROM '%s' DELIMITERS ',' CSV QUOTE '''';" % (table_name, full_path))
+                #sql = self.cursor.mogrify("COPY %s FROM '%s' DELIMITERS ',' CSV QUOTE '''';", (AsIs(table_name), AsIs(full_path),))
+                sql = "COPY %s FROM '%s' DELIMITERS ',' CSV QUOTE '''';", (table_name, full_path,)
                 self.cursor.copy_expert(sql, f)
             print("Inserted %s rows in %s table" % (self.cursor.rowcount, table_name))
         except psycopg2.Error as e:
