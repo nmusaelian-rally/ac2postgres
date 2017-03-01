@@ -273,6 +273,9 @@ class DBConnector:
         try:
             writer = csv.writer(open(file_name, "w")) #, quoting=csv.QUOTE_NONE
             for row in self.init_data[entity]:
+                #print(row)
+                row = tuple([x.strip("'") if type(x).__name__ == 'str' else x for x in row])
+                #print(row)
                 writer.writerow(row)
         except:
             e = sys.exc_info()[0]
@@ -287,13 +290,18 @@ class DBConnector:
         full_path = '%s/%s' % (os.getcwd(), file_name)
         try:
             with open(file_name, 'r', newline='') as f:
+                sql = "COPY %s FROM '%s' DELIMITERS ',';" % (table_name, full_path)
                 #sql = "COPY %s FROM '%s' DELIMITERS ',' CSV QUOTE '''';" % (table_name, full_path)
                 #sql = self.cursor.mogrify("COPY %s FROM '%s' DELIMITERS ',';",(AsIs(table_name), AsIs(full_path),))
+                #print (sql) #b"COPY HierarchicalRequirement FROM '/Users/musni02/mypy35/myapps/db-connect/HierarchicalRequirement.csv' DELIMITERS ',';"
+                # below returns this error: argument 1 must be a string or unicode object
+                #sql = "COPY %s FROM '%s' DELIMITERS ',';",(AsIs(table_name), AsIs(full_path),)
                 #sql = self.cursor.mogrify("COPY %s FROM '%s' DELIMITERS ',';"% (table_name, full_path))
                 #sql = self.cursor.mogrify("COPY %s FROM '%s' DELIMITERS ',' CSV QUOTE '''';" % (table_name, full_path))
                 #sql = self.cursor.mogrify("COPY %s FROM '%s' DELIMITERS ',' CSV QUOTE '''';", (AsIs(table_name), AsIs(full_path),))
-                sql = "COPY %s FROM '%s' DELIMITERS ',' CSV QUOTE '''';", (table_name, full_path,)
-                self.cursor.copy_expert(sql, f)
+                #sql = self.cursor.mogrify("COPY %s FROM '%s' DELIMITERS ',' CSV QUOTE '''';",  (table_name,full_path,))
+                #self.cursor.copy_expert(sql, f)
+                self.cursor.execute(sql,f)
             print("Inserted %s rows in %s table" % (self.cursor.rowcount, table_name))
         except psycopg2.Error as e:
             print("pycopg2 Problem in copying AC data to database\n%s" % e)
