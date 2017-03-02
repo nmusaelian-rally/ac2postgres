@@ -66,12 +66,13 @@ class DBConnector:
 
     def matchTypes(self,rally_type):
         return {
-            'INTEGER' : 'bigint',
-            'DATE'    : 'timestamp with time zone',
-            'BOOLEAN' : 'boolean default false',
-            'QUANTITY': 'double precision',  # e.g. Rally PlanEstimate's AttributeType: "QUANTITY"
-            'STRING'  : 'text',
-            'DECIMAL' : 'numeric'
+            'INTEGER' : 'bigint'
+            ,'DATE'    : 'timestamp with time zone'
+            ,'BOOLEAN' : 'boolean default false'
+            ,'QUANTITY': 'numeric'
+            ,'DECIMAL': 'numeric'
+            ,'STRING'  : 'text'
+            ,'TEXT'    : 'text'
         }[rally_type]
 
     def convert_list_to_string_of_quoted_items(self, values):
@@ -91,7 +92,6 @@ class DBConnector:
 
     def attributes_subset(self, element):
         found = False
-        #found = element.ElementName in self.config["ac"]["fetch"]
         result = re.search('\\b%s\\b' %element.ElementName, self.config["ac"]["fetch"])
         if result:
             found = True
@@ -101,7 +101,7 @@ class DBConnector:
         for itemtype in self.schema:
             attributes = list(filter(self.attributes_subset, itemtype.Attributes))
             table_name = itemtype.ElementName
-            #self.columns[table_name] = [{attr.ElementName: attr.AttributeType} for attr in attributes ]
+            #attr.SchemaType is needed, e.g. to identify User attr
             self.columns[table_name] = [{attr.ElementName: (attr.AttributeType, attr.SchemaType)} for attr in attributes]
 
 
@@ -202,6 +202,8 @@ class DBConnector:
                 user_fields = [k for column in self.columns[entity] for k, v in column.items() if v[1] == 'User']
                 collection_fileds = [k for column in self.columns[entity] for k, v in column.items()
                                      for v in column.values() if 'COLLECTION' in v]
+                number_fields = [k for column in self.columns[entity] for k, v in column.items()
+                                 for v in column.values() if 'INTEGER' in v or 'QUANTITY' in v or 'DECIMAL' in v]
                 fetch = ','.join(fields)
                 response = self.ac.get('%s' % entity, fetch=fetch, query=query, order="ObjectID", pagesize=2000, projectScopeDown=True)
                 #print("result count for %s: %s"%(entity, response.resultCount))
@@ -220,8 +222,8 @@ class DBConnector:
                                 if not value or value == 'None':
                                     value = None
                                 else:
-                                    number_fields = [k for column in self.columns[entity] for k, v in column.items()
-                                                         for v in column.values() if 'INTEGER' in v or 'QUANTITY' in v]
+                                    # number_fields = [k for column in self.columns[entity] for k, v in column.items()
+                                    #                      for v in column.values() if 'INTEGER' in v or 'QUANTITY' in v]
                                     if field in user_fields:
                                         if self.config['ac']['resolveUser']:
                                             value = value.Name
