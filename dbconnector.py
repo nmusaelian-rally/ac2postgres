@@ -210,8 +210,6 @@ class DBConnector:
                 try:
                     for item in response:
                         field_values = []
-                        formatters = ""
-                        empty_fields = []
                         try:
                             for field in fields:
                                 if field in collection_fileds:
@@ -220,10 +218,8 @@ class DBConnector:
                                 # RATING   type e.g. Severity     when empty return 'None'.
                                 # QUANTITY type e.g. PlanEstimate when empty return None
                                 if not value or value == 'None':
-                                    #empty_fields.append(field)
                                     value = None
                                 else:
-                                    formatters = formatters + "%s," #keep adding %s, for example, for two fields it resolves to: '%s,%s'
                                     number_fields = [k for column in self.columns[entity] for k, v in column.items()
                                                          for v in column.values() if 'INTEGER' in v or 'QUANTITY' in v]
                                     if field in user_fields:
@@ -240,7 +236,6 @@ class DBConnector:
                                         value = "'" + str(value) + "'"
                                     elif field in collection_fileds:
                                         pass
-                                        #field_values.append(value)
                                 field_values.append(value) #NOTE change of indent compare to commented out line above. I want to append None values
                         except:
                             e = sys.exc_info()[0]
@@ -271,11 +266,9 @@ class DBConnector:
     def save_init_data_to_csv(self, entity, fields):
         file_name = "%s.csv" %entity
         try:
-            writer = csv.writer(open(file_name, "w")) #, quoting=csv.QUOTE_NONE
+            writer = csv.writer(open(file_name, "w"))
             for row in self.init_data[entity]:
-                #print(row)
                 row = tuple([x.strip("'") if type(x).__name__ == 'str' else x for x in row])
-                #print(row)
                 writer.writerow(row)
         except:
             e = sys.exc_info()[0]
@@ -290,18 +283,14 @@ class DBConnector:
         full_path = '%s/%s' % (os.getcwd(), file_name)
         try:
             with open(file_name, 'r', newline='') as f:
-                sql = "COPY %s FROM '%s' DELIMITERS ',';" % (table_name, full_path)
-                #sql = "COPY %s FROM '%s' DELIMITERS ',' CSV QUOTE '''';" % (table_name, full_path)
-                #sql = self.cursor.mogrify("COPY %s FROM '%s' DELIMITERS ',';",(AsIs(table_name), AsIs(full_path),))
-                #print (sql) #b"COPY HierarchicalRequirement FROM '/Users/musni02/mypy35/myapps/db-connect/HierarchicalRequirement.csv' DELIMITERS ',';"
-                # below returns this error: argument 1 must be a string or unicode object
-                #sql = "COPY %s FROM '%s' DELIMITERS ',';",(AsIs(table_name), AsIs(full_path),)
-                #sql = self.cursor.mogrify("COPY %s FROM '%s' DELIMITERS ',';"% (table_name, full_path))
-                #sql = self.cursor.mogrify("COPY %s FROM '%s' DELIMITERS ',' CSV QUOTE '''';" % (table_name, full_path))
-                #sql = self.cursor.mogrify("COPY %s FROM '%s' DELIMITERS ',' CSV QUOTE '''';", (AsIs(table_name), AsIs(full_path),))
-                #sql = self.cursor.mogrify("COPY %s FROM '%s' DELIMITERS ',' CSV QUOTE '''';",  (table_name,full_path,))
-                #self.cursor.copy_expert(sql, f)
-                self.cursor.execute(sql,f)
+                #sql = "COPY %s FROM '%s' DELIMITERS ',';", (AsIs(table_name), AsIs(full_path),) # not ok
+                #sql = self.cursor.mogrify("COPY %s FROM '%s' DELIMITERS ',';", (AsIs(table_name), AsIs(full_path),)) # ok
+                #sql = self.cursor.mogrify("COPY %s FROM '%s' DELIMITERS ',' CSV QUOTE '''';", (table_name, full_path,)) # not ok
+                #sql = "COPY %s FROM '%s' DELIMITERS ',' CSV QUOTE '''';" % (table_name, full_path) # not ok
+                #sql = self.cursor.mogrify("COPY %s FROM '%s' DELIMITERS ',';", (AsIs(table_name), AsIs(full_path),)) # ok
+                #sql = "COPY %s FROM '%s' WITH DELIMITER ',' CSV;" % (table_name, full_path)  # ok
+                sql = "COPY %s FROM '%s' CSV;" % (table_name, full_path) #ok
+                self.cursor.execute(sql, f)
             print("Inserted %s rows in %s table" % (self.cursor.rowcount, table_name))
         except psycopg2.Error as e:
             print("pycopg2 Problem in copying AC data to database\n%s" % e)
