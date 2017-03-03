@@ -131,6 +131,23 @@ class DBConnector:
             table = 'Users'  # 'User' is a reserved table name in postgres
         return table
 
+    def construct_sql_4_objects(self, attr, entity):
+        table = self.table_name(entity)
+        data_type = 'bigint'
+        _name = attr.ElementName
+
+        if attr.SchemaType == 'User':
+            if self.config['ac']['resolveUser']:
+                data_type = 'text'
+            sql = "ALTER TABLE %s ADD COLUMN %s %s" % (table, _name, data_type)
+        elif attr.ElementName == 'State':
+            self.map_pi_states(entity)
+            state_allowed_values = [v for state in self.pi_states_map[entity] for k, v in state.items()]
+            sql = "ALTER TABLE %s ADD COLUMN %s text check (%s IN (%s)) " \
+                  % (table, _name, _name, self.convert_list_to_string_of_quoted_items(state_allowed_values))
+        else:
+            sql = "ALTER TABLE %s ADD COLUMN %s %s" % (table, _name, data_type)
+        return sql
 
     def construct_sql(self, attr, itemtype):
         entity = itemtype.ElementName
@@ -141,29 +158,19 @@ class DBConnector:
         _values = attr.AllowedValues
         sql = ''
 
-        if attr.AttributeType == 'RATING':
+        if _type == 'RATING':
             rating_allowed_values = [a.StringValue for a in _values]
             sql = "ALTER TABLE %s ADD COLUMN %s text check (%s IN (%s)) " \
                    %(table, _name, _name, self.convert_list_to_string_of_quoted_items(rating_allowed_values))
-        elif attr.AttributeType == 'STATE':
+        elif _type == 'STATE':
             state_allowed_values = [a.StringValue for a in _values]
             sql = "ALTER TABLE %s ADD COLUMN %s text check (%s IN (%s)) " \
                   %(table, _name, _name, self.convert_list_to_string_of_quoted_items(state_allowed_values))
-        elif attr.AttributeType == 'OBJECT' and attr.SchemaType == 'User':
-            if self.config['ac']['resolveUser']:
-                sql = "ALTER TABLE %s ADD COLUMN %s %s" %(table, _name, 'text')
-            else:
-                sql = "ALTER TABLE %s ADD COLUMN %s %s" %(table, _name, 'bigint')
-        elif attr.AttributeType == 'OBJECT' and attr.ElementName == 'State':
-            self.map_pi_states(entity)
-            state_allowed_values = [v for state in self.pi_states_map[entity] for k, v in state.items()]
-            sql = "ALTER TABLE %s ADD COLUMN %s text check (%s IN (%s)) " \
-                  %(table, _name, _name, self.convert_list_to_string_of_quoted_items(state_allowed_values))
-        elif attr.AttributeType == 'OBJECT':
-            sql = "ALTER TABLE %s ADD COLUMN %s %s" %(table, _name, 'bigint')
-        elif attr.ElementName == 'FormattedID':
+        elif _type == 'OBJECT':
+            sql = self.construct_sql_4_objects(attr, table)
+        elif _name == 'FormattedID':
             sql = "ALTER TABLE %s ADD COLUMN %s %s" %(table, _name, 'text')
-        elif attr.AttributeType == 'COLLECTION':
+        elif _type == 'COLLECTION':
             print('skipped %s because %s is not supported' %(_name, _type))
             pass
         else:
