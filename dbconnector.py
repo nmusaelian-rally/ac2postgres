@@ -18,8 +18,10 @@ class DBConnector:
         self.schema     = self.get_schema()
         self.columns = {}
         self.pi_states_map = {}
-        self.cache_columns()
         self.init_data = {}
+        self.field_categories = {}
+
+        self.cache_columns()
 
     def read_config(self, config_name):
         with open(config_name, 'r') as file:
@@ -54,9 +56,6 @@ class DBConnector:
         except Exception as ex:
             errout(str(ex.args[0]))
             sys.exit(1)
-
-    # def get_entities(self):
-    #     self.config['db']['tables'].replace(',', '').split()
 
     def get_schema(self):
         workitems_meta = []
@@ -170,9 +169,6 @@ class DBConnector:
             sql = self.construct_sql_4_objects(attr, table)
         elif _name == 'FormattedID':
             sql = "ALTER TABLE %s ADD COLUMN %s %s" %(table, _name, 'text')
-        elif _type == 'COLLECTION':
-            print('skipped %s because %s is not supported' %(_name, _type))
-            pass
         else:
             sql = "ALTER TABLE %s ADD COLUMN %s %s" %(table, _name, self.match_data_types(_type))
         return sql
@@ -184,10 +180,33 @@ class DBConnector:
             table = self.table_name(entity)
             self.cursor.execute("CREATE TABLE %s ();" %table)
             for attr in attributes:
-                sql = self.construct_sql(attr, itemtype)
-                self.cursor.execute(sql)
+                if attr.AttributeType == 'COLLECTION':
+                    print('skipped %s field on %s because %s type is not supported' % (attr.ElementName, entity, attr.AttributeType))
+                else:
+                    sql = self.construct_sql(attr, itemtype)
+                    self.cursor.execute(sql)
             self.db.commit()
 
+    def get_field_value(self, entity, field, value):
+        category = self.field_categories[entity]
+        # RATING   type e.g. Severity     when empty return 'None'.
+        # QUANTITY type e.g. PlanEstimate when empty return None
+        if not value or value == 'None':
+            value = None
+        else:
+            if field in self.field_categories[entity]['user']:
+                if self.config['ac']['resolveUser']:
+                    value = value.Name
+                else:
+                    value = int(value._ref.split('/')[-1])
+            elif field in category['ref']:
+                value = int(value._ref.split('/')[-1])
+            elif field in category['pi_state']:
+                oid = value._ref.split('/')[-1]
+                value = [v for state in self.pi_states_map[entity] for k, v in state.items() if k == int(oid)][0]
+            elif field == 'FormattedID' or (field not in category['number'] and field != 'None'):
+                value = "'" + str(value) + "'"
+        return value
 
     def get_init_data(self):
         ac_start_times       =  {}
@@ -200,50 +219,40 @@ class DBConnector:
         records_per_workitem = {}
         for entity in self.entities:
             try:
+                self.field_categories[entity] = {}
                 ac_start_times[entity] = time.time()
                 fields = [k for column in self.columns[entity] for k, v in column.items()]
                 ref_fields = [k for column in self.columns[entity] for k, v in column.items() if
-                              (v[0] == 'OBJECT' and k != 'State' and v[1] != 'User')] # later when resolving user add this condition: and v[1] != 'User'
+                                   (v[0] == 'OBJECT' and k != 'State' and v[1] != 'User')]
                 pi_state_fields = [k for column in self.columns[entity] for k, v in column.items() if
                                    (v[0] == 'OBJECT' and k == 'State')]
                 user_fields = [k for column in self.columns[entity] for k, v in column.items() if v[1] == 'User']
-                collection_fileds = [k for column in self.columns[entity] for k, v in column.items()
+                collection_fields = [k for column in self.columns[entity] for k, v in column.items()
                                      for v in column.values() if 'COLLECTION' in v]
                 number_fields = [k for column in self.columns[entity] for k, v in column.items()
                                  for v in column.values() if 'INTEGER' in v or 'QUANTITY' in v or 'DECIMAL' in v]
+
+                self.field_categories[entity].update(
+                    {'ref'       :ref_fields,
+                     'pi_state'  :pi_state_fields,
+                     'user'      :user_fields,
+                     'number'    :number_fields,
+                     'collection':collection_fields
+                     })
+
                 fetch = ','.join(fields)
                 response = self.ac.get('%s' % entity, fetch=fetch, query=query, order="ObjectID", pagesize=2000, projectScopeDown=True)
-                #print("result count for %s: %s"%(entity, response.resultCount))
-                number_of_records = 0
                 self.init_data[entity] = []
                 try:
                     for item in response:
                         field_values = []
                         try:
                             for field in fields:
-                                if field in collection_fileds:
-                                    continue
+                                if field in self.field_categories[entity]['collection']:
+                                     continue
                                 value = getattr(item, field)
-                                # RATING   type e.g. Severity     when empty return 'None'.
-                                # QUANTITY type e.g. PlanEstimate when empty return None
-                                if not value or value == 'None':
-                                    value = None
-                                else:
-                                    if field in user_fields:
-                                        if self.config['ac']['resolveUser']:
-                                            value = value.Name
-                                        else:
-                                            value = int(value._ref.split('/')[-1])
-                                    elif field in ref_fields:
-                                        value = int(value._ref.split('/')[-1])
-                                    elif field in pi_state_fields:
-                                        oid = value._ref.split('/')[-1]
-                                        value = [v for state in self.pi_states_map[entity] for k, v in state.items() if k == int(oid)][0]
-                                    elif field == 'FormattedID' or (field not in number_fields and field != 'None'):
-                                        value = "'" + str(value) + "'"
-                                    elif field in collection_fileds:
-                                        pass
-                                field_values.append(value) #NOTE change of indent compare to commented out line above. I want to append None values
+                                value = self.get_field_value(entity, field, value)
+                                field_values.append(value) # None values are also appended due to indentation
                         except:
                             e = sys.exc_info()[0]
                             print("Problem in fields loop, skipping item\n%s" %e)
