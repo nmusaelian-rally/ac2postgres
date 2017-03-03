@@ -64,13 +64,13 @@ class DBConnector:
             workitems_meta.append(self.ac.typedef(entity))
         return workitems_meta
 
-    def matchTypes(self,rally_type):
+    def match_data_types(self,rally_type):
         return {
-            'INTEGER' : 'bigint'
+            'INTEGER'  : 'bigint'
             ,'DATE'    : 'timestamp with time zone'
             ,'BOOLEAN' : 'boolean default false'
             ,'QUANTITY': 'numeric'
-            ,'DECIMAL': 'numeric'
+            ,'DECIMAL' : 'numeric'
             ,'STRING'  : 'text'
             ,'TEXT'    : 'text'
         }[rally_type]
@@ -125,60 +125,60 @@ class DBConnector:
         if response.resultCount:
             return  [user for user in response][0]
 
+    def table_name(self, entity):
+        table = entity
+        if table == 'User':
+            table = 'Users'  # 'User' is a reserved table name in postgres
+        return table
+
+
+    def construct_sql(self, attr, itemtype):
+        entity = itemtype.ElementName
+        table = self.table_name(entity)
+
+        _name   = attr.ElementName
+        _type   = attr.AttributeType
+        _values = attr.AllowedValues
+        sql = ''
+
+        if attr.AttributeType == 'RATING':
+            rating_allowed_values = [a.StringValue for a in _values]
+            sql = "ALTER TABLE %s ADD COLUMN %s text check (%s IN (%s)) " \
+                   %(table, _name, _name, self.convert_list_to_string_of_quoted_items(rating_allowed_values))
+        elif attr.AttributeType == 'STATE':
+            state_allowed_values = [a.StringValue for a in _values]
+            sql = "ALTER TABLE %s ADD COLUMN %s text check (%s IN (%s)) " \
+                  %(table, _name, _name, self.convert_list_to_string_of_quoted_items(state_allowed_values))
+        elif attr.AttributeType == 'OBJECT' and attr.SchemaType == 'User':
+            if self.config['ac']['resolveUser']:
+                sql = "ALTER TABLE %s ADD COLUMN %s %s" %(table, _name, 'text')
+            else:
+                sql = "ALTER TABLE %s ADD COLUMN %s %s" %(table, _name, 'bigint')
+        elif attr.AttributeType == 'OBJECT' and attr.ElementName == 'State':
+            self.map_pi_states(entity)
+            state_allowed_values = [v for state in self.pi_states_map[entity] for k, v in state.items()]
+            sql = "ALTER TABLE %s ADD COLUMN %s text check (%s IN (%s)) " \
+                  %(table, _name, _name, self.convert_list_to_string_of_quoted_items(state_allowed_values))
+        elif attr.AttributeType == 'OBJECT':
+            sql = "ALTER TABLE %s ADD COLUMN %s %s" %(table, _name, 'bigint')
+        elif attr.ElementName == 'FormattedID':
+            sql = "ALTER TABLE %s ADD COLUMN %s %s" %(table, _name, 'text')
+        elif attr.AttributeType == 'COLLECTION':
+            print('skipped %s because %s is not supported' %(_name, _type))
+            pass
+        else:
+            sql = "ALTER TABLE %s ADD COLUMN %s %s" %(table, _name, self.match_data_types(_type))
+        return sql
+
     def create_tables_n_columns(self):
         for itemtype in self.schema:
             attributes = list(filter(self.attributes_subset, itemtype.Attributes))
             entity = itemtype.ElementName
-            table_name = entity
-            if table_name == 'User':
-                table_name = 'Users'
-            #populate list of dictionaries of column_name:type, e.g.
-            # [{'CreationDate': 'DATE'}, {'ObjectID': 'INTEGER'}, {'ScheduleState': 'STATE'}]
-            #self.columns[table_name] = [{attr.ElementName: attr.AttributeType} for attr in attributes ]
-            self.cursor.execute("CREATE TABLE %s ();", (AsIs(table_name),))
-            #self.cursor.execute("ALTER TABLE %s ADD COLUMN ID SERIAL PRIMARY KEY;",(AsIs(table_name),))
+            table = self.table_name(entity)
+            self.cursor.execute("CREATE TABLE %s ();" %table)
             for attr in attributes:
-                element_name = attr.ElementName
-                attribute_type = attr.AttributeType
-                allowed_values = attr.AllowedValues
-
-                print('-' + element_name)
-                print('---' + attribute_type)
-
-                if attr.AttributeType == 'RATING':
-                    rating_allowed_values = [a.StringValue for a in allowed_values]
-                    self.cursor.execute("ALTER TABLE %s ADD COLUMN %s text check (%s IN (%s)) ",
-                                (AsIs(table_name), AsIs(element_name), AsIs(element_name),
-                                 (AsIs(self.convert_list_to_string_of_quoted_items(rating_allowed_values))),))
-                elif attr.AttributeType == 'STATE':
-                    state_allowed_values = [a.StringValue for a in allowed_values]
-                    self.cursor.execute("ALTER TABLE %s ADD COLUMN %s text check (%s IN (%s)) ",
-                                (AsIs(table_name), AsIs(element_name), AsIs(element_name),
-                                 (AsIs(self.convert_list_to_string_of_quoted_items(state_allowed_values))),))
-                elif attr.AttributeType == 'OBJECT' and attr.SchemaType == 'User':
-                    if self.config['ac']['resolveUser']:
-                        self.cursor.execute("ALTER TABLE %s ADD COLUMN %s %s",(AsIs(table_name), AsIs(element_name), (AsIs('text')),))
-                    else:
-                        self.cursor.execute("ALTER TABLE %s ADD COLUMN %s %s",(AsIs(table_name), AsIs(element_name), (AsIs('bigint')),))
-
-                elif attr.AttributeType == 'OBJECT' and attr.ElementName == 'State' :
-                    self.map_pi_states(entity)
-                    state_allowed_values = [v for state in self.pi_states_map[entity] for k, v in state.items()]
-                    self.cursor.execute("ALTER TABLE %s ADD COLUMN %s text check (%s IN (%s)) ",
-                                (AsIs(table_name), AsIs(element_name), AsIs(element_name),
-                                 (AsIs(self.convert_list_to_string_of_quoted_items(state_allowed_values))),))
-                elif attr.AttributeType == 'OBJECT':
-                    self.cursor.execute("ALTER TABLE %s ADD COLUMN %s %s",
-                                        (AsIs(table_name), AsIs(element_name), (AsIs('bigint')),))
-                elif attr.AttributeType == 'COLLECTION':
-                    #print('skipped %s because %s is not supported' %(element_name, attr.AttributeType))
-                    pass
-                elif attr.ElementName == 'FormattedID':
-                    self.cursor.execute("ALTER TABLE %s ADD COLUMN %s %s",
-                                        (AsIs(table_name), AsIs(element_name), (AsIs('text')),))
-                else:
-                    self.cursor.execute("ALTER TABLE %s ADD COLUMN %s %s",
-                                (AsIs(table_name), AsIs(element_name), (AsIs(self.matchTypes(attribute_type))),))
+                sql = self.construct_sql(attr, itemtype)
+                self.cursor.execute(sql)
             self.db.commit()
 
 
@@ -222,8 +222,6 @@ class DBConnector:
                                 if not value or value == 'None':
                                     value = None
                                 else:
-                                    # number_fields = [k for column in self.columns[entity] for k, v in column.items()
-                                    #                      for v in column.values() if 'INTEGER' in v or 'QUANTITY' in v]
                                     if field in user_fields:
                                         if self.config['ac']['resolveUser']:
                                             value = value.Name
@@ -285,12 +283,6 @@ class DBConnector:
         full_path = '%s/%s' % (os.getcwd(), file_name)
         try:
             with open(file_name, 'r', newline='') as f:
-                #sql = "COPY %s FROM '%s' DELIMITERS ',';", (AsIs(table_name), AsIs(full_path),) # not ok
-                #sql = self.cursor.mogrify("COPY %s FROM '%s' DELIMITERS ',';", (AsIs(table_name), AsIs(full_path),)) # ok
-                #sql = self.cursor.mogrify("COPY %s FROM '%s' DELIMITERS ',' CSV QUOTE '''';", (table_name, full_path,)) # not ok
-                #sql = "COPY %s FROM '%s' DELIMITERS ',' CSV QUOTE '''';" % (table_name, full_path) # not ok
-                #sql = self.cursor.mogrify("COPY %s FROM '%s' DELIMITERS ',';", (AsIs(table_name), AsIs(full_path),)) # ok
-                #sql = "COPY %s FROM '%s' WITH DELIMITER ',' CSV;" % (table_name, full_path)  # ok
                 sql = "COPY %s FROM '%s' CSV;" % (table_name, full_path) #ok
                 self.cursor.execute(sql, f)
             print("Inserted %s rows in %s table" % (self.cursor.rowcount, table_name))
