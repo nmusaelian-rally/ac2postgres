@@ -26,7 +26,7 @@ PROG = 'dbconn'
 def main(args):
     try:
         connector_runner = DBConnectorRunner(args[0])
-        connector_runner.run(args)
+        connector_runner.run()
     except Exception as msg:
         sys.stderr.write('ERROR: %s encountered an ERROR condition.\n %s' % (PROG, msg))
         sys.exit(1)

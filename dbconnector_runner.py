@@ -5,14 +5,9 @@ class DBConnectorRunner():
     def __init__(self, config):
         self.dbconnector = DBConnector(config)
 
-    # def create(self):
-    #     self.dbconnector.create_tables_n_columns()
-    #     self.dbconnector.insert_init_data()
-
-    def run(self, args):
+    def run(self):
         try:
             self.dbconnector.create_tables_n_columns()
-            #self.dbconnector.insert_init_data()
             self.dbconnector.get_init_data()
         except Exception as msg:
             sys.stderr.write('Oh noes!\n %s' % msg)
