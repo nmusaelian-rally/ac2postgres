@@ -24,7 +24,9 @@ class DBConnector:
         self.cache_columns()
 
     def read_config(self, config_name):
-        with open(config_name, 'r') as file:
+        config_dir  = 'configs'
+        config_path = '%s/%s' %(config_dir, config_name)
+        with open(config_path, 'r') as file:
             config = yaml.load(file)
         return config
 
@@ -281,8 +283,13 @@ class DBConnector:
 
     def save_init_data_to_csv(self, entity, fields):
         file_name = "%s.csv" %entity
+        dir_name = 'csv/%s' %self.config['db']['name']
+        if not os.path.exists(dir_name):
+            os.makedirs(dir_name)
+
+        file_path = '%s/%s' %(dir_name, file_name)
         try:
-            writer = csv.writer(open(file_name, "w"))
+            writer = csv.writer(open(file_path, "w"))
             for row in self.init_data[entity]:
                 row = tuple([x.strip("'") if type(x).__name__ == 'str' else x for x in row])
                 writer.writerow(row)
@@ -296,9 +303,10 @@ class DBConnector:
         if entity == 'User':
             table_name = 'Users'
         file_name = "%s.csv" % entity
-        full_path = '%s/%s' % (os.getcwd(), file_name)
+        dir_path = 'csv/%s' %self.config['db']['name']
+        full_path = '%s/%s/%s' % (os.getcwd(), dir_path, file_name)
         try:
-            with open(file_name, 'r', newline='') as f:
+            with open(full_path, 'r', newline='') as f:
                 sql = "COPY %s FROM '%s' CSV;" % (table_name, full_path) #ok
                 self.cursor.execute(sql, f)
             print("Inserted %s rows in %s table" % (self.cursor.rowcount, table_name))

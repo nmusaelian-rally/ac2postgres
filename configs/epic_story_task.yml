@@ -1,0 +1,15 @@
+ac:
+    url:       rally1.rallydev.com
+    apikey  :  _Is5xtsWQHSojokIM4Ytoak6ZZFkvxtl2QuN2W5qc
+    workspace: NMTest
+    project:   P1
+    query:     Release.Name = "Release 1"
+    fetch:     CreationDate,ObjectID,FormattedID,Name,Owner,Project,Workspace,ScheduleState,PlanEstimate,State,PlannedEndDate,PlannedStartDate,WSJFScore,DirectChildrenCount,Estimate,WorkProduct,Parent,c_Musketeer,c_AliasesOfMilady
+    resolveUser: False
+db:
+    name: rally_epic_story_task
+    user: postgres
+    password: postgres
+    host: 127.0.0.1
+    port: 5432
+    tables: Epic,HierarchicalRequirement,Task

@@ -1,0 +1,15 @@
+ac:
+    url:       rally1.rallydev.com
+    apikey  :  _Is5xtsWQHSojokIM4Ytoak6ZZFkvxtl2QuN2W5qc
+    workspace: N
+    project:   Fantomas
+    query:     LastLoginDate > 2016-01-01
+    fetch: ObjectID,UserName
+    resolveUser: False
+db:
+    name: rallyusers
+    user: postgres
+    password: postgres
+    host: 127.0.0.1
+    port: 5432
+    tables: User

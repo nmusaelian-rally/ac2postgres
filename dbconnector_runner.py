@@ -1,7 +1,7 @@
 import sys
 from dbconnector import DBConnector
 
-class DBConnectorRunner():
+class DBConnectorRunner:
     def __init__(self, config):
         self.dbconnector = DBConnector(config)
 

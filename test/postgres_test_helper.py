@@ -42,7 +42,7 @@ class PostgresCreatorDestroyer (PostgresSuper):
         try:
             self.conn.set_isolation_level(0)
             self.cursor.execute('CREATE DATABASE ' + dbname)
-            self.cursor.close()
+            #self.cursor.close()
         except psycopg2.ProgrammingError as e:
             print (e)
             raise
@@ -52,7 +52,7 @@ class PostgresCreatorDestroyer (PostgresSuper):
         try:
             self.conn.set_isolation_level(0)
             self.cursor.execute('DROP DATABASE ' + dbname)
-            self.cursor.close()
+            #self.cursor.close()
         except psycopg2.ProgrammingError as e:
             print (e)
             raise
@@ -230,7 +230,7 @@ def test_connect():
     helper.conn.close()
 
 def test_db_doesnot_exist():
-    config_file = KEEP_CONFIG
+    config_file = 'configs/db_not_exist.yml'
     problem = 'database "unicorn" does not exist'
     with pytest.raises(psycopg2.OperationalError) as excinfo:
         PostgresTestHelper(config_file)

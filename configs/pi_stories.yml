@@ -1,0 +1,15 @@
+ac:
+    url:       rally1.rallydev.com
+    apikey  :  _Is5xtsWQHSojokIM4Ytoak6ZZFkvxtl2QuN2W5qc
+    workspace: NMTest
+    project:   P1
+    query:     LastUpdateDate >= 2016-01-01
+    fetch: ObjectID,FormattedID,ScheduleState,PlanEstimate,Owner,State,Estimate,ToDo,WorkProduct,Project,Workspace
+    resolveUser: False
+db:
+    name: pi_stories
+    user: postgres
+    password: postgres
+    host: 127.0.0.1
+    port: 5432
+    tables: Strategy, Feature,Epic, HierarchicalRequirement

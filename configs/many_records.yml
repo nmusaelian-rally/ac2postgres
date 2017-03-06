@@ -1,0 +1,15 @@
+ac:
+    url:       rally1.rallydev.com
+    apikey  :  _Is5xtsWQHSojokIM4Ytoak6ZZFkvxtl2QuN2W5qc
+    workspace: N
+    project:   Fantomas
+    query:     LastUpdateDate <= 2017-01-14
+    fetch: ObjectID,FormattedID,ScheduleState,PlanEstimate,Owner,State,Estimate,ToDo,WorkProduct,Project,Workspace
+    resolveUser: True
+db:
+    name: rally_many_records
+    user: postgres
+    password: postgres
+    host: 127.0.0.1
+    port: 5432
+    tables: HierarchicalRequirement,Task
